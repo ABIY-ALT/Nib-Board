@@ -1,0 +1,381 @@
+// NIB International Bank — BOD Directives, Decisions & Resolutions Tracking
+//
+// This schema is the single source of truth for the database. Physical names
+// stay snake_case (@map / @@map) so the SQL is idiomatic Postgres, while the
+// generated client is camelCase so the application code reads as TypeScript.
+//
+// Columns that carry a fixed vocabulary — role, status, priority — are TEXT
+// with a CHECK constraint rather than a Postgres enum. The constraints live in
+// the migration SQL, and the matching TypeScript unions live in src/lib/types.ts.
+// Prisma cannot express CHECK constraints, so treat those two as a pair: adding
+// a value means editing both.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ------------------------------------------------------------------- people
+
+model User {
+  id           String  @id
+  name         String
+  email        String  @unique
+  role         String
+  title        String
+  businessArea String  @map("business_area")
+  department   String?
+  phone        String?
+  isActive     Boolean @default(true) @map("is_active")
+
+  /// Argon2id, salt and parameters included. No plaintext or reversible form
+  /// of a password is ever stored.
+  passwordHash       String?   @map("password_hash")
+  mustChangePassword Boolean   @default(true) @map("must_change_password")
+  passwordChangedAt  DateTime? @map("password_changed_at") @db.Timestamptz(6)
+
+  /// Online-guessing defence. lockedUntil is set once the failure count crosses
+  /// the threshold and is cleared by a successful sign-in.
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime? @map("locked_until") @db.Timestamptz(6)
+  lastLoginAt         DateTime? @map("last_login_at") @db.Timestamptz(6)
+
+  mattersCreated          Matter[]               @relation("MatterCreatedBy")
+  mattersOwned            Matter[]               @relation("MatterCurrentOwner")
+  mattersAsDirector       Matter[]               @relation("MatterResponsibleDirector")
+  mattersAsChief          Matter[]               @relation("MatterResponsibleChief")
+  mattersAsDeputyChief    Matter[]               @relation("MatterResponsibleDeputyChief")
+  mattersAsAccountable    Matter[]               @relation("MatterAccountableExecutive")
+  mattersLastActioned     Matter[]               @relation("MatterLastActionUser")
+  mattersClosed           Matter[]               @relation("MatterClosedBy")
+  clarificationsRequested Clarification[]        @relation("ClarificationRequestedBy")
+  clarificationsReceived  Clarification[]        @relation("ClarificationRequestedTo")
+  clarificationsAnswered  Clarification[]        @relation("ClarificationResponseBy")
+  reportsSubmitted        ImplementationReport[] @relation("ReportSubmittedBy")
+  reportsReviewed         ImplementationReport[] @relation("ReportReviewedBy")
+  documents               Document[]
+  workflowNodes           WorkflowNode[]
+  auditLogs               AuditLog[]
+  authEvents              AuthEvent[]
+  notifications           Notification[]
+  sessions                Session[]
+  passwordSetupTokens     PasswordSetupToken[]
+
+  @@map("users")
+}
+
+/// Administrators may add types at runtime without touching the workflow (spec §3).
+model MatterType {
+  name      String  @id
+  sortOrder Int     @default(100) @map("sort_order")
+  isActive  Boolean @default(true) @map("is_active")
+
+  matters Matter[]
+
+  @@map("matter_types")
+}
+
+/// Dynamic role definitions and custom permission configurations.
+model RoleDefinition {
+  id          String   @id
+  roleKey     String   @unique @map("role_key")
+  label       String
+  description String   @default("")
+  isSystem    Boolean  @default(false) @map("is_system")
+  permissions String[] @default([])
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@map("role_definitions")
+}
+
+// ------------------------------------------------------------------ matters
+
+model Matter {
+  id               String @id
+  resolutionNumber String @map("resolution_number")
+  matterType       String @map("matter_type")
+  title            String
+  description      String
+
+  boardMeetingDate  DateTime? @map("board_meeting_date") @db.Date
+  boardDecisionDate DateTime  @map("board_decision_date") @db.Date
+  effectiveDate     DateTime? @map("effective_date") @db.Date
+  deadline          DateTime  @db.Date
+  priority          String
+
+  businessArea             String  @map("business_area")
+  responsibleChiefId       String? @map("responsible_chief_id")
+  responsibleDeputyChiefId String? @map("responsible_deputy_chief_id")
+  responsibleDirectorId    String? @map("responsible_director_id")
+  currentOwnerId           String  @map("current_owner_id")
+  accountableExecutiveId   String? @map("accountable_executive_id")
+
+  status        String
+  progress      Int    @default(0)
+  currentStage  String @default("") @map("current_stage")
+  overallStatus String @default("") @map("overall_status")
+
+  /// daysRemaining and isOverdue are never stored: they are derived from the
+  /// deadline at read time so they cannot drift out of date.
+  lastAction         String    @default("") @map("last_action")
+  lastActionDate     DateTime? @map("last_action_date") @db.Timestamptz(6)
+  lastActionUserId   String?   @map("last_action_user_id")
+  nextRequiredAction String    @default("") @map("next_required_action")
+  nextActionRole     String?   @map("next_action_role")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy String    @map("created_by")
+  updatedAt DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  closedAt  DateTime? @map("closed_at") @db.Timestamptz(6)
+  closedBy  String?   @map("closed_by")
+
+  type                 MatterType @relation(fields: [matterType], references: [name], onDelete: NoAction, onUpdate: NoAction)
+  creator              User       @relation("MatterCreatedBy", fields: [createdBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  currentOwner         User       @relation("MatterCurrentOwner", fields: [currentOwnerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  responsibleDirector  User?      @relation("MatterResponsibleDirector", fields: [responsibleDirectorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  responsibleChief     User?      @relation("MatterResponsibleChief", fields: [responsibleChiefId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  responsibleDeputy    User?      @relation("MatterResponsibleDeputyChief", fields: [responsibleDeputyChiefId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accountableExecutive User?      @relation("MatterAccountableExecutive", fields: [accountableExecutiveId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  lastActionUser       User?      @relation("MatterLastActionUser", fields: [lastActionUserId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  closer               User?      @relation("MatterClosedBy", fields: [closedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  documents            Document[]
+  workflowNodes        WorkflowNode[]
+  clarifications       Clarification[]
+  implementationReport ImplementationReport?
+  auditLogs            AuditLog[]
+  notifications        Notification[]
+
+  @@index([currentOwnerId], map: "matters_current_owner_idx")
+  @@index([responsibleDirectorId], map: "matters_director_idx")
+  @@index([responsibleChiefId], map: "matters_chief_idx")
+  @@index([responsibleDeputyChiefId], map: "matters_deputy_idx")
+  @@index([businessArea], map: "matters_business_area_idx")
+  @@index([status], map: "matters_status_idx")
+  @@index([deadline], map: "matters_deadline_idx")
+  @@map("matters")
+}
+
+model Document {
+  id             String   @id
+  matterId       String   @map("matter_id")
+  name           String
+  category       String
+  fileType       String   @default("application/pdf") @map("file_type")
+  fileSize       String   @default("") @map("file_size")
+  uploadedById   String   @map("uploaded_by")
+  uploadedByRole String   @map("uploaded_by_role")
+  uploadedAt     DateTime @default(now()) @map("uploaded_at") @db.Timestamptz(6)
+  description    String?
+
+  /// Where the bytes actually are, relative to NIB_STORAGE_ROOT — which is
+  /// outside the application directory. Null on rows that predate file upload
+  /// and are metadata only; the CHECK constraint keeps the three in step.
+  storageKey String? @map("storage_key")
+  /// SHA-256 of the content, verified on every read. See lib/storage.ts.
+  sha256     String?
+  byteSize   Int?    @map("byte_size")
+
+  matter     Matter @relation(fields: [matterId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  uploadedBy User   @relation(fields: [uploadedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([matterId], map: "documents_matter_idx")
+  @@index([sha256], map: "documents_sha256_idx")
+  @@map("documents")
+}
+
+/// The path the matter actually travelled. Only levels that participated get a
+/// row, which is what lets the timeline show the real route (spec §10).
+model WorkflowNode {
+  id           String    @id
+  matterId     String    @map("matter_id")
+  seq          Int
+  level        String
+  label        String
+  userId       String    @map("user_id")
+  role         String
+  businessArea String    @default("") @map("business_area")
+  assignedAt   DateTime  @map("assigned_at") @db.Timestamptz(6)
+  actedAt      DateTime? @map("acted_at") @db.Timestamptz(6)
+  actionTaken  String?   @map("action_taken")
+  status       String
+  comment      String?
+
+  matter Matter @relation(fields: [matterId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user   User   @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([matterId, seq], map: "workflow_nodes_matter_idx")
+  @@map("workflow_nodes")
+}
+
+model Clarification {
+  id            String    @id
+  matterId      String    @map("matter_id")
+  requestedById String    @map("requested_by")
+  requestedToId String    @map("requested_to")
+  requestedAt   DateTime  @default(now()) @map("requested_at") @db.Timestamptz(6)
+  question      String
+  status        String
+  resolvedAt    DateTime? @map("resolved_at") @db.Timestamptz(6)
+  response      String?
+  responseById  String?   @map("response_by")
+
+  matter      Matter @relation(fields: [matterId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  requestedBy User   @relation("ClarificationRequestedBy", fields: [requestedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  requestedTo User   @relation("ClarificationRequestedTo", fields: [requestedToId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  responseBy  User?  @relation("ClarificationResponseBy", fields: [responseById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([matterId], map: "clarifications_matter_idx")
+  @@map("clarifications")
+}
+
+/// One report per matter; resubmission after a revision request overwrites it,
+/// while the audit trail retains every submission event.
+model ImplementationReport {
+  id             String   @id
+  matterId       String   @unique @map("matter_id")
+  submittedById  String   @map("submitted_by")
+  submissionDate DateTime @default(now()) @map("submission_date") @db.Timestamptz(6)
+
+  actionTaken        String    @map("action_taken")
+  whatWasImplemented String    @map("what_was_implemented")
+  implementationDate DateTime? @map("implementation_date") @db.Date
+  responsibleArea    String?   @map("responsible_area")
+  resultOutcome      String    @map("result_outcome")
+  currentCondition   String    @map("current_condition")
+  remainingIssues    String?   @map("remaining_issues")
+  reasonPartial      String?   @map("reason_partial")
+  comments           String?
+  completionDate     DateTime? @map("completion_date") @db.Date
+  completionStatus   String    @map("completion_status")
+
+  reviewedById   String?   @map("reviewed_by")
+  reviewDate     DateTime? @map("review_date") @db.Timestamptz(6)
+  reviewNotes    String?   @map("review_notes")
+  reviewDecision String?   @map("review_decision")
+
+  matter      Matter @relation(fields: [matterId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  submittedBy User   @relation("ReportSubmittedBy", fields: [submittedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reviewedBy  User?  @relation("ReportReviewedBy", fields: [reviewedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("implementation_reports")
+}
+
+// -------------------------------------------------------------- audit trail
+
+/// Deliberately NOT "ON DELETE CASCADE": history outlives convenience. With the
+/// append-only triggers in the migration, a matter that has any audit history
+/// cannot be deleted at all, which is the intended behaviour for Board records.
+model AuditLog {
+  id         BigInt   @id @default(autoincrement())
+  matterId   String   @map("matter_id")
+  occurredAt DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  userId     String   @map("user_id")
+  userName   String   @map("user_name")
+  userRole   String   @map("user_role")
+  userTitle  String   @map("user_title")
+  action     String
+
+  previousOwnerId   String? @map("previous_owner_id")
+  previousOwnerName String? @map("previous_owner_name")
+  previousOwnerRole String? @map("previous_owner_role")
+  newOwnerId        String? @map("new_owner_id")
+  newOwnerName      String? @map("new_owner_name")
+  newOwnerRole      String? @map("new_owner_role")
+  previousStatus    String? @map("previous_status")
+  newStatus         String? @map("new_status")
+  comment           String?
+  supportingDocName String? @map("supporting_doc_name")
+
+  matter Matter @relation(fields: [matterId], references: [id], onUpdate: NoAction)
+  user   User   @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([matterId, occurredAt(sort: Desc)], map: "audit_logs_matter_idx")
+  @@map("audit_logs")
+}
+
+model Notification {
+  id        String   @id
+  userId    String   @map("user_id")
+  matterId  String   @map("matter_id")
+  title     String
+  message   String
+  type      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  isRead    Boolean  @default(false) @map("is_read")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  matter Matter @relation(fields: [matterId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([userId, isRead], map: "notifications_user_idx")
+  @@map("notifications")
+}
+
+// ------------------------------------------------------ sessions & security
+
+/// Server-side sessions. The cookie carries a random token; only its SHA-256
+/// hash is stored, so a database disclosure yields no usable session. Sessions
+/// can be expired, rotated on sign-in, and revoked individually or in bulk —
+/// none of which is possible with a self-contained cookie.
+model Session {
+  id                String    @id
+  tokenHash         String    @unique @map("token_hash")
+  userId            String    @map("user_id")
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  lastSeenAt        DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  expiresAt         DateTime  @map("expires_at") @db.Timestamptz(6)
+  absoluteExpiresAt DateTime  @map("absolute_expires_at") @db.Timestamptz(6)
+  ip                String?
+  userAgent         String?   @map("user_agent")
+  revokedAt         DateTime? @map("revoked_at") @db.Timestamptz(6)
+  revokedReason     String?   @map("revoked_reason")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([userId], map: "sessions_user_idx")
+  @@index([expiresAt], map: "sessions_expiry_idx")
+  @@map("sessions")
+}
+
+/// Security audit, kept separate from the matter audit trail: these events are
+/// about accounts and sessions, and many of them (a failed sign-in against an
+/// unknown address) have no matter and no known user to attach to.
+model AuthEvent {
+  id             BigInt   @id @default(autoincrement())
+  occurredAt     DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  event          String
+  userId         String?  @map("user_id")
+  emailAttempted String?  @map("email_attempted")
+  ip             String?
+  userAgent      String?  @map("user_agent")
+  detail         String?
+
+  user User? @relation(fields: [userId], references: [id], onUpdate: NoAction)
+
+  @@index([occurredAt(sort: Desc)], map: "auth_events_time_idx")
+  @@index([userId, occurredAt(sort: Desc)], map: "auth_events_user_idx")
+  @@index([ip, event, occurredAt(sort: Desc)], map: "auth_events_ip_idx")
+  @@map("auth_events")
+}
+
+/// One-time tokens sent by email when an officer account is provisioned or a
+/// password is reset. Only the SHA-256 hash of the token is stored; anyone
+/// reading the table learns nothing that can be replayed.
+model PasswordSetupToken {
+  id        String    @id
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([userId], map: "setup_tokens_user_idx")
+  @@map("password_setup_tokens")
+}

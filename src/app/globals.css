@@ -1,0 +1,205 @@
+@import "tailwindcss";
+
+/* Manual theme control: Light / Dark / System. `.dark` is set on <html> by the
+   theme provider; System simply removes it and follows the OS. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ─────────────────────────────────────────────────────────────────────────
+   NIB INTERNATIONAL BANK — DESIGN TOKENS
+
+   Brand scale first, then semantic roles. Components reference the semantic
+   roles only, so light and dark stay in step and no page invents its own
+   slightly different value.
+   ───────────────────────────────────────────────────────────────────────── */
+
+@theme {
+  /* Brand — fixed, identical in both themes */
+  --color-nib-brown-900: #3A1C05;
+  --color-nib-brown-800: #4B2507;
+  --color-nib-brown-700: #783B08;
+  --color-nib-brown-600: #8F4E14;
+
+  --color-nib-gold-700: #96751F;
+  --color-nib-gold-600: #B89334;
+  --color-nib-gold-500: #D89A16;
+  --color-nib-gold-400: #F3BD28;
+  --color-nib-gold-200: #F0DCA8;
+  --color-nib-gold-100: #F8E9C5;
+
+  --color-nib-cream: #FCF8EF;
+
+  /* Semantic surfaces — remapped under .dark below */
+  --color-app: #FCF8EF;
+  --color-surface: #FFFFFF;
+  --color-surface-2: #FAF6EC;
+  --color-surface-3: #F3EDE0;
+  --color-line: #E6DFCE;
+  --color-line-strong: #D6CBB2;
+
+  /* Modal scrim. Translucent on purpose: a dialog is a layer over the page the
+     officer was reading, not a replacement for it, so the record stays visible
+     behind it. */
+  --color-scrim: rgb(58 28 5 / 0.42);
+
+  --color-ink: #2A1B0C;
+  --color-ink-2: #5C4A34;
+  --color-ink-3: #8A7862;
+
+  --color-sidebar: #4B2507;
+  --color-sidebar-2: #3A1C05;
+  --color-sidebar-ink: #F2E6D2;
+  --color-sidebar-ink-2: #C4A98A;
+  --color-sidebar-line: #6B3B12;
+
+  /* Status — one hue per state, used identically on every screen */
+  --color-st-neutral: #64748B;
+  --color-st-neutral-bg: #F1F5F9;
+  --color-st-info: #2563EB;
+  --color-st-info-bg: #EFF6FF;
+  --color-st-active: #0E7490;
+  --color-st-active-bg: #ECFEFF;
+  --color-st-wait: #7C3AED;
+  --color-st-wait-bg: #F5F3FF;
+  --color-st-review: #B45309;
+  --color-st-review-bg: #FFFBEB;
+  --color-st-done: #047857;
+  --color-st-done-bg: #ECFDF5;
+  --color-st-late: #B91C1C;
+  --color-st-late-bg: #FEF2F2;
+
+  /* Type scale — restrained; tables stay legible at 13px */
+  --text-page: 1.5rem;      /* 24px page titles */
+  --text-section: 1rem;     /* 16px section titles */
+  --text-body: 0.875rem;    /* 14px */
+  --text-table: 0.8125rem;  /* 13px */
+  --text-meta: 0.75rem;     /* 12px */
+
+  /* Component geometry */
+  --radius-control: 0.5rem;
+  --radius-card: 0.75rem;
+  --spacing-sidebar: 17rem;      /* 272px */
+  --spacing-sidebar-collapsed: 4.5rem;
+  --spacing-header: 3.5rem;
+
+  /* Shadows — deliberately shallow; this is a records system, not a card deck */
+  --shadow-card: 0 1px 2px 0 rgb(58 28 5 / 0.05);
+  --shadow-raised: 0 4px 12px -2px rgb(58 28 5 / 0.10), 0 2px 4px -2px rgb(58 28 5 / 0.06);
+  --shadow-overlay: 0 16px 40px -8px rgb(58 28 5 / 0.28);
+}
+
+/* Dark theme: deep warm charcoal rather than inverted colours, so the brand
+   still reads as NIB brown/gold and gold stays an accent. */
+.dark {
+  --color-app: #1A130C;
+  --color-surface: #241A11;
+  --color-surface-2: #2C2016;
+  --color-surface-3: #36281B;
+  --color-line: #3D2E20;
+  --color-line-strong: #4E3B29;
+  --color-scrim: rgb(8 5 2 / 0.66);
+
+  --color-ink: #F5EDE1;
+  --color-ink-2: #C9B79F;
+  --color-ink-3: #9A876F;
+
+  --color-sidebar: #241A11;
+  --color-sidebar-2: #1A130C;
+  --color-sidebar-ink: #F5EDE1;
+  --color-sidebar-ink-2: #A89179;
+  --color-sidebar-line: #3D2E20;
+
+  --color-st-neutral: #94A3B8;
+  --color-st-neutral-bg: #29303A;
+  --color-st-info: #7EA6F5;
+  --color-st-info-bg: #1C2740;
+  --color-st-active: #5FC8DA;
+  --color-st-active-bg: #10303A;
+  --color-st-wait: #B79BF7;
+  --color-st-wait-bg: #2A2140;
+  --color-st-review: #E0A33C;
+  --color-st-review-bg: #35280F;
+  --color-st-done: #4FBF8B;
+  --color-st-done-bg: #12301F;
+  --color-st-late: #F08A85;
+  --color-st-late-bg: #3A1A19;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-app);
+    color: var(--color-ink);
+    font-size: var(--text-body);
+    line-height: 1.5;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+      "Helvetica Neue", Arial, sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Reference numbers, dates and durations line up in tables. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* A single visible focus treatment across the whole application. */
+  :focus-visible {
+    outline: 2px solid var(--color-nib-gold-500);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  ::selection {
+    background-color: var(--color-nib-gold-200);
+    color: var(--color-nib-brown-900);
+  }
+
+  /* Scrollbars tuned to the warm palette rather than the OS default grey. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line-strong) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--color-line-strong);
+    border-radius: 6px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@layer utilities {
+  /* Skeletons: one shimmer, defined once. */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--color-surface-2) 25%,
+      var(--color-surface-3) 37%,
+      var(--color-surface-2) 63%
+    );
+    background-size: 400% 100%;
+    animation: nib-shimmer 1.4s ease-in-out infinite;
+  }
+
+  @keyframes nib-shimmer {
+    0% { background-position: 100% 50%; }
+    100% { background-position: 0 50%; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton { animation: none; }
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
