@@ -67,7 +67,7 @@ export function storageRoot(): string {
   // known at run time, so there is nothing for it to trace and nothing it
   // should bundle.
   const resolved = path.resolve(/*turbopackIgnore: true*/ configured);
-  const project = path.resolve(process.cwd());
+  const project = path.resolve(/*turbopackIgnore: true*/ process.cwd());
 
   const relative = path.relative(project, resolved);
   const insideProject = relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
