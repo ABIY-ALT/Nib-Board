@@ -10,7 +10,6 @@ import {
 } from '@/lib/utils';
 import { 
   FileSpreadsheet, 
-  Printer, 
   PieChart, 
   BarChart3, 
   TrendingUp, 
@@ -18,8 +17,8 @@ import {
   CheckCircle2, 
   Building2, 
   UserCheck, 
-  Calendar,
-  Layers
+  Calendar, 
+  Layers 
 } from 'lucide-react';
 
 interface ReportsViewProps {
@@ -127,10 +126,6 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onSelectMatter }) => {
     return Object.values(map);
   }, [inPeriod]);
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   const handleExportCSV = () => {
     const headers = ['Business Area', 'Director', 'Total Directives', 'Completed', 'In Progress', 'Overdue', 'Completion Rate'];
     const rows = directorStats.map((d) => [
@@ -204,19 +199,12 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onSelectMatter }) => {
             </div>
           </div>
 
-          <button
+            <button
             onClick={handleExportCSV}
-            className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border border-line-strong hover:bg-surface-2 text-xs font-medium text-ink-2 transition shadow-card"
+            className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg border border-line-strong hover:bg-surface-2 text-xs font-semibold text-ink transition shadow-xs"
           >
             <FileSpreadsheet className="w-3.5 h-3.5 text-st-done" />
             <span>Export Analytics</span>
-          </button>
-          <button
-            onClick={handlePrint}
-            className="inline-flex items-center space-x-1.5 bg-surface hover:bg-[#143154] text-white px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-card transition"
-          >
-            <Printer className="w-3.5 h-3.5 text-nib-gold-400" />
-            <span>Print Executive Summary</span>
           </button>
         </div>
       </div>

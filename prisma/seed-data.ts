@@ -4,7 +4,7 @@ export const NIB_USERS: User[] = [
   {
     id: 'usr_sec_1',
     name: 'Rahel Solomon',
-    email: 'rahel.solomon@nibbank.et',
+    email: 'rahel.solomon@nibbank.com.et',
     role: 'BOARD_SECRETARIAT',
     title: 'Head of Board Secretariat & Corporate Governance',
     businessArea: 'Board Secretariat',
@@ -15,7 +15,7 @@ export const NIB_USERS: User[] = [
   {
     id: 'usr_ceo_1',
     name: 'Dawit Tadesse',
-    email: 'dawit.tadesse@nibbank.et',
+    email: 'dawit.tadesse@nibbank.com.et',
     role: 'CEO',
     title: 'Chief Executive Officer (CEO)',
     businessArea: 'Executive Management',
@@ -26,7 +26,7 @@ export const NIB_USERS: User[] = [
   {
     id: 'usr_chief_ops',
     name: 'Ephrem Bekele',
-    email: 'ephrem.bekele@nibbank.et',
+    email: 'ephrem.bekele@nibbank.com.et',
     role: 'CHIEF',
     title: 'Chief Operations Officer (COO)',
     businessArea: 'Banking Operations',
@@ -37,7 +37,7 @@ export const NIB_USERS: User[] = [
   {
     id: 'usr_chief_retail',
     name: 'Bethlehem Haile',
-    email: 'bethlehem.haile@nibbank.et',
+    email: 'bethlehem.haile@nibbank.com.et',
     role: 'CHIEF',
     title: 'Chief Retail & SME Banking Officer',
     businessArea: 'Retail Banking',
@@ -48,7 +48,7 @@ export const NIB_USERS: User[] = [
   {
     id: 'usr_chief_risk',
     name: 'Michael Girma',
-    email: 'michael.girma@nibbank.et',
+    email: 'michael.girma@nibbank.com.et',
     role: 'CHIEF',
     title: 'Chief Risk & Compliance Officer (CRO)',
     businessArea: 'Risk & Compliance',
@@ -59,7 +59,7 @@ export const NIB_USERS: User[] = [
   {
     id: 'usr_chief_it',
     name: 'Henok Samuel',
-    email: 'henok.samuel@nibbank.et',
+    email: 'henok.samuel@nibbank.com.et',
     role: 'CHIEF',
     title: 'Chief Information & Digital Officer (CIDO)',
     businessArea: 'Information Technology',
@@ -70,7 +70,7 @@ export const NIB_USERS: User[] = [
   {
     id: 'usr_deputy_branch',
     name: 'Yonas Alemu',
-    email: 'yonas.alemu@nibbank.et',
+    email: 'yonas.alemu@nibbank.com.et',
     role: 'DEPUTY_CHIEF',
     title: 'Deputy Chief - Branch Network Operations',
     businessArea: 'Banking Operations',
@@ -81,7 +81,7 @@ export const NIB_USERS: User[] = [
   {
     id: 'usr_deputy_digital',
     name: 'Samrawit Negash',
-    email: 'samrawit.negash@nibbank.et',
+    email: 'samrawit.negash@nibbank.com.et',
     role: 'DEPUTY_CHIEF',
     title: 'Deputy Chief - Digital Channels & Payments',
     businessArea: 'Information Technology',
@@ -92,7 +92,7 @@ export const NIB_USERS: User[] = [
   {
     id: 'usr_dir_branch_ops',
     name: 'Solomon Mengistu',
-    email: 'solomon.mengistu@nibbank.et',
+    email: 'solomon.mengistu@nibbank.com.et',
     role: 'DIRECTOR',
     title: 'Director - Branch Operations & Service Delivery',
     businessArea: 'Banking Operations',
@@ -103,7 +103,7 @@ export const NIB_USERS: User[] = [
   {
     id: 'usr_dir_credit',
     name: 'Tigist Abebe',
-    email: 'tigist.abebe@nibbank.et',
+    email: 'tigist.abebe@nibbank.com.et',
     role: 'DIRECTOR',
     title: 'Director - Credit Assessment & Underwriting',
     businessArea: 'Retail Banking',
@@ -114,7 +114,7 @@ export const NIB_USERS: User[] = [
   {
     id: 'usr_dir_compliance',
     name: 'Daniel Kebede',
-    email: 'daniel.kebede@nibbank.et',
+    email: 'daniel.kebede@nibbank.com.et',
     role: 'DIRECTOR',
     title: 'Director - Regulatory Compliance & AML/CFT',
     businessArea: 'Risk & Compliance',
@@ -125,7 +125,7 @@ export const NIB_USERS: User[] = [
   {
     id: 'usr_dir_it_sec',
     name: 'Meron Tesfaye',
-    email: 'meron.tesfaye@nibbank.et',
+    email: 'meron.tesfaye@nibbank.com.et',
     role: 'DIRECTOR',
     title: 'Director - IT Infrastructure & Cyber Security',
     businessArea: 'Information Technology',
@@ -136,7 +136,7 @@ export const NIB_USERS: User[] = [
   {
     id: 'usr_dir_cust_exp',
     name: 'Berhanu Kassaye',
-    email: 'berhanu.kassaye@nibbank.et',
+    email: 'berhanu.kassaye@nibbank.com.et',
     role: 'DIRECTOR',
     title: 'Director - Customer Experience & Service Quality',
     businessArea: 'Banking Operations',
@@ -151,7 +151,7 @@ export const NIB_USERS: User[] = [
     // first-sign-in password change (see passwordChangeEnforced in lib/session).
     id: 'usr_admin_1',
     name: 'System Administrator',
-    email: 'admin@nibbank.et',
+    email: 'admin@nibbank.com.et',
     role: 'ADMIN',
     title: 'System Administrator',
     businessArea: 'Board Secretariat',

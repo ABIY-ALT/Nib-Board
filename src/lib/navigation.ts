@@ -1,5 +1,6 @@
 import {
   AlertTriangle,
+  Archive,
   BarChart3,
   ClipboardCheck,
   ClipboardList,
@@ -25,6 +26,7 @@ export type ViewId =
   | 'directives'
   | 'resolutions'
   | 'incoming'
+  | 'archive'
   | 'my-tasks'
   | 'pending-actions'
   | 'overdue'
@@ -46,7 +48,7 @@ export interface NavItem {
   title: string;
   description: string;
   /** Which counter from the derived nav counts to show as a badge. */
-  badge?: 'incoming' | 'myTasks' | 'overdue' | 'pendingActions' | 'decisions';
+  badge?: 'incoming' | 'myTasks' | 'overdue' | 'pendingActions' | 'decisions' | 'closed';
   /** When set, only these roles see the item. The API is authoritative regardless. */
   roles?: Role[];
 }
@@ -87,6 +89,7 @@ export const NAV_GROUPS: NavGroup[] = [
         badge: 'decisions',
         title: 'Board Decisions',
         description: 'Manage and monitor Board decisions and their implementation.',
+        roles: ['BOARD_SECRETARIAT', 'BOARD_MEMBER', 'CEO', 'CEO_SECRETARIAT', 'CHIEF', 'ADMIN'],
       },
       {
         id: 'directives',
@@ -94,6 +97,7 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: FileText,
         title: 'Directives',
         description: 'Board directives issued to management and their execution status.',
+        roles: ['BOARD_SECRETARIAT', 'BOARD_MEMBER', 'CEO', 'CEO_SECRETARIAT', 'CHIEF', 'ADMIN'],
       },
       {
         id: 'resolutions',
@@ -101,6 +105,7 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: ScrollText,
         title: 'Resolutions',
         description: 'Formal Board resolutions and the actions taken against them.',
+        roles: ['BOARD_SECRETARIAT', 'BOARD_MEMBER', 'CEO', 'CEO_SECRETARIAT', 'CHIEF', 'ADMIN'],
       },
       {
         id: 'incoming',
@@ -109,6 +114,15 @@ export const NAV_GROUPS: NavGroup[] = [
         badge: 'incoming',
         title: 'Incoming Matters',
         description: 'Board matters routed to you and awaiting acceptance of ownership.',
+        roles: ['BOARD_SECRETARIAT', 'CEO', 'CEO_SECRETARIAT', 'CHIEF', 'DEPUTY_CHIEF', 'DIRECTOR'],
+      },
+      {
+        id: 'archive',
+        label: 'Closed Archive',
+        icon: Archive,
+        badge: 'closed',
+        title: 'Closed Matters Archive',
+        description: 'Permanent institutional repository of formally closed and historical Board matters.',
       },
     ],
   },
@@ -122,6 +136,7 @@ export const NAV_GROUPS: NavGroup[] = [
         badge: 'myTasks',
         title: 'My Tasks',
         description: 'Board matters you currently own, grouped by how soon they are due.',
+        roles: ['BOARD_SECRETARIAT', 'CEO', 'CEO_SECRETARIAT', 'CHIEF', 'DEPUTY_CHIEF', 'DIRECTOR'],
       },
       {
         id: 'pending-actions',
@@ -130,6 +145,7 @@ export const NAV_GROUPS: NavGroup[] = [
         badge: 'pendingActions',
         title: 'Pending Actions',
         description: 'Matters waiting on a specific action from you before they can move on.',
+        roles: ['BOARD_SECRETARIAT', 'CEO', 'CEO_SECRETARIAT', 'CHIEF', 'DEPUTY_CHIEF', 'DIRECTOR'],
       },
       {
         id: 'overdue',
@@ -138,6 +154,7 @@ export const NAV_GROUPS: NavGroup[] = [
         badge: 'overdue',
         title: 'Overdue Matters',
         description: 'Board matters past their deadline, grouped by how long they have been late.',
+        roles: ['BOARD_SECRETARIAT', 'BOARD_MEMBER', 'CEO', 'CEO_SECRETARIAT', 'CHIEF', 'DEPUTY_CHIEF', 'DIRECTOR'],
       },
       {
         id: 'escalated',
@@ -145,6 +162,7 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: TrendingUp,
         title: 'Escalated Matters',
         description: 'Matters formally escalated for management attention.',
+        roles: ['BOARD_SECRETARIAT', 'BOARD_MEMBER', 'CEO', 'CEO_SECRETARIAT', 'CHIEF'],
       },
     ],
   },
@@ -157,6 +175,7 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: FileCheck2,
         title: 'Implementation Tracking',
         description: 'Execution progress and supporting evidence for each Board matter.',
+        roles: ['BOARD_SECRETARIAT', 'BOARD_MEMBER', 'CEO', 'CEO_SECRETARIAT', 'CHIEF', 'DEPUTY_CHIEF', 'DIRECTOR'],
       },
       {
         id: 'overview',
@@ -164,6 +183,7 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: Gauge,
         title: 'Decision Overview',
         description: 'Distribution of Board matters by type, status, priority and business area.',
+        roles: ['BOARD_SECRETARIAT', 'BOARD_MEMBER', 'CEO', 'CEO_SECRETARIAT', 'CHIEF'],
       },
       {
         id: 'sla',
@@ -171,6 +191,7 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: Timer,
         title: 'SLA & Aging',
         description: 'How long matters have been open and how they sit against their deadlines.',
+        roles: ['BOARD_SECRETARIAT', 'BOARD_MEMBER', 'CEO', 'CEO_SECRETARIAT', 'CHIEF'],
       },
     ],
   },
@@ -183,6 +204,7 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: ShieldCheck,
         title: 'Audit Trail',
         description: 'Complete, immutable history of every action taken on a Board matter.',
+        roles: ['BOARD_SECRETARIAT', 'BOARD_MEMBER', 'ADMIN'],
       },
       {
         id: 'reports',
@@ -190,6 +212,7 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: BarChart3,
         title: 'Reports',
         description: 'Management and Board Secretariat reporting across all governance activity.',
+        roles: ['BOARD_SECRETARIAT', 'BOARD_MEMBER', 'CEO', 'CEO_SECRETARIAT', 'CHIEF'],
       },
     ],
   },
@@ -223,6 +246,7 @@ export function navItem(id: ViewId): NavItem | undefined {
 }
 
 export function visibleGroups(role: Role): NavGroup[] {
+  if (role === 'ADMIN') return NAV_GROUPS;
   return NAV_GROUPS.map((g) => ({
     ...g,
     items: g.items.filter((i) => !i.roles || i.roles.includes(role)),
@@ -230,6 +254,7 @@ export function visibleGroups(role: Role): NavGroup[] {
 }
 
 export function canSeeView(role: Role, id: ViewId): boolean {
+  if (role === 'ADMIN') return true;
   const item = navItem(id);
   if (!item) return true;
   return !item.roles || item.roles.includes(role);

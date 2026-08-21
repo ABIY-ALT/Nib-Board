@@ -233,31 +233,66 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
               </p>
             ) : (
               <ul className="max-h-80 overflow-y-auto divide-y divide-line">
-                {notifications.slice(0, 12).map((n) => (
-                  <li
-                    key={n.id}
-                    className={cn('px-3 py-2.5', !n.isRead && 'bg-nib-gold-100/40 dark:bg-surface-2')}
-                  >
-                    <div className="flex items-start gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[12px] font-semibold text-ink leading-snug">{n.title}</p>
-                        <p className="text-[11px] text-ink-2 mt-0.5 leading-snug">{n.message}</p>
-                        <p className="text-[10px] text-ink-3 mt-1 tabular">
-                          {new Date(n.timestamp).toLocaleString()}
-                        </p>
-                      </div>
-                      {!n.isRead && (
-                        <button
-                          onClick={() => markNotificationRead(n.id)}
-                          className="p-1 rounded text-ink-3 hover:text-st-done hover:bg-surface-3 shrink-0"
-                          aria-label="Mark as read"
-                        >
-                          <Check className="w-3.5 h-3.5" />
-                        </button>
+                {notifications.slice(0, 15).map((n) => {
+                  const targetMatter = matters.find((m) => m.id === n.matterId);
+                  return (
+                    <li
+                      key={n.id}
+                      onClick={() => {
+                        if (!n.isRead) {
+                          markNotificationRead(n.id);
+                        }
+                        if (targetMatter) {
+                          onSelectMatter(targetMatter);
+                          setNotifOpen(false);
+                        }
+                      }}
+                      className={cn(
+                        'px-3 py-2.5 transition-colors cursor-pointer group',
+                        !n.isRead
+                          ? 'bg-nib-gold-100/40 dark:bg-nib-brown-900/30 border-l-2 border-nib-gold-500 hover:bg-nib-gold-100/70 dark:hover:bg-nib-brown-900/50'
+                          : 'hover:bg-surface-2 opacity-85 hover:opacity-100'
                       )}
-                    </div>
-                  </li>
-                ))}
+                    >
+                      <div className="flex items-start gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            {!n.isRead && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-nib-gold-600 shrink-0" />
+                            )}
+                            <p className="text-[12px] font-semibold text-ink leading-snug group-hover:text-nib-gold-700 dark:group-hover:text-nib-gold-300 transition-colors">
+                              {n.title}
+                            </p>
+                          </div>
+                          <p className="text-[11px] text-ink-2 mt-0.5 leading-snug">{n.message}</p>
+                          <div className="flex items-center justify-between mt-1">
+                            <span className="text-[10px] text-ink-3 tabular">
+                              {new Date(n.timestamp).toLocaleString()}
+                            </span>
+                            {targetMatter && (
+                              <span className="text-[10px] font-medium text-nib-gold-700 dark:text-nib-gold-400 group-hover:underline">
+                                View matter →
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {!n.isRead && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              markNotificationRead(n.id);
+                            }}
+                            className="p-1 rounded text-ink-3 hover:text-st-done hover:bg-surface-3 shrink-0 transition"
+                            title="Mark this notification as read"
+                            aria-label="Mark as read"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>

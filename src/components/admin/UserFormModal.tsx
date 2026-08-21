@@ -43,21 +43,31 @@ export const UserFormModal: React.FC<Props> = ({ isOpen, onClose, editing, onSav
 
   const [form, setForm] = useState(BLANK);
   const [availableRoles, setAvailableRoles] = useState<Array<{ roleKey: string; label: string }>>([]);
+  const [departments, setDepartments] = useState<Array<{ id: string; name: string; businessArea: string }>>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   React.useEffect(() => {
     (async () => {
       try {
-        const res = await fetch('/api/roles');
-        if (res.ok) {
-          const data = await res.json();
+        const [rolesRes, deptsRes] = await Promise.all([
+          fetch('/api/roles'),
+          fetch('/api/departments'),
+        ]);
+        if (rolesRes.ok) {
+          const data = await rolesRes.json();
           if (data.roles?.length) {
             setAvailableRoles(data.roles.map((r: any) => ({ roleKey: r.roleKey, label: r.label })));
           }
         }
+        if (deptsRes.ok) {
+          const deptData = await deptsRes.json();
+          if (deptData.departments?.length) {
+            setDepartments(deptData.departments);
+          }
+        }
       } catch {
-        // Fallback to ASSIGNABLE_ROLES
+        // Fallback to defaults
       }
     })();
   }, []);
@@ -177,7 +187,7 @@ export const UserFormModal: React.FC<Props> = ({ isOpen, onClose, editing, onSav
                 required
                 value={form.email}
                 onChange={(e) => set('email')(e.target.value)}
-                placeholder="name@nibbank.et"
+                placeholder="name@nibbank.com.et"
                 className={inputClass}
               />
             </Field>
@@ -229,16 +239,32 @@ export const UserFormModal: React.FC<Props> = ({ isOpen, onClose, editing, onSav
           </Field>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Department" htmlFor="u-dept">
+            <Field label="Directorate / Department" htmlFor="u-dept" hint="Select from registered directorates or enter department">
               <input
                 id="u-dept"
+                list="dept-options"
                 value={form.department}
-                onChange={(e) => set('department')(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  set('department')(val);
+                  const matched = departments.find((d) => d.name.toLowerCase() === val.toLowerCase());
+                  if (matched && !form.businessArea) {
+                    set('businessArea')(matched.businessArea);
+                  }
+                }}
+                placeholder="Select or enter directorate..."
                 className={inputClass}
               />
+              <datalist id="dept-options">
+                {departments.map((d) => (
+                  <option key={d.id} value={d.name}>
+                    {d.businessArea}
+                  </option>
+                ))}
+              </datalist>
             </Field>
 
-            <Field label="Phone" htmlFor="u-phone">
+            <Field label="Phone number" htmlFor="u-phone">
               <input
                 id="u-phone"
                 value={form.phone}

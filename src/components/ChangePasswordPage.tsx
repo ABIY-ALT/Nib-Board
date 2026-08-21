@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { useAuth } from '@/context/AuthContext';
-import { KeyRound, ShieldCheck, AlertTriangle, Check, Loader2 } from 'lucide-react';
+import { KeyRound, ShieldCheck, AlertTriangle, Check, Loader2, Eye, EyeOff } from 'lucide-react';
 import { passwordRules } from '@/lib/password-policy';
 
 /**
@@ -16,6 +16,9 @@ export const ChangePasswordPage: React.FC = () => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -80,42 +83,84 @@ export const ChangePasswordPage: React.FC = () => {
               <label className="block text-[11px] font-semibold text-ink-2 mb-1">
                 Current password
               </label>
-              <input
-                type="password"
-                autoComplete="current-password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                className="w-full bg-app border border-line rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-nib-gold-400/60"
-                required
-              />
+              <div className="relative">
+                <input
+                  type={showCurrentPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="w-full bg-app border border-line rounded-lg pl-3 pr-10 py-2 text-xs focus:outline-none focus:border-nib-gold-400/60"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-black hover:text-neutral-700 p-1 rounded transition"
+                  aria-label={showCurrentPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showCurrentPassword ? (
+                    <EyeOff className="w-5 h-5 stroke-[2.8] text-black" />
+                  ) : (
+                    <Eye className="w-5 h-5 stroke-[2.8] text-black" />
+                  )}
+                </button>
+              </div>
             </div>
 
             <div>
               <label className="block text-[11px] font-semibold text-ink-2 mb-1">
                 New password
               </label>
-              <input
-                type="password"
-                autoComplete="new-password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full bg-app border border-line rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-nib-gold-400/60"
-                required
-              />
+              <div className="relative">
+                <input
+                  type={showNewPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full bg-app border border-line rounded-lg pl-3 pr-10 py-2 text-xs focus:outline-none focus:border-nib-gold-400/60"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-black hover:text-neutral-700 p-1 rounded transition"
+                  aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showNewPassword ? (
+                    <EyeOff className="w-5 h-5 stroke-[2.8] text-black" />
+                  ) : (
+                    <Eye className="w-5 h-5 stroke-[2.8] text-black" />
+                  )}
+                </button>
+              </div>
             </div>
 
             <div>
               <label className="block text-[11px] font-semibold text-ink-2 mb-1">
                 Confirm new password
               </label>
-              <input
-                type="password"
-                autoComplete="new-password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full bg-app border border-line rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-nib-gold-400/60"
-                required
-              />
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full bg-app border border-line rounded-lg pl-3 pr-10 py-2 text-xs focus:outline-none focus:border-nib-gold-400/60"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-black hover:text-neutral-700 p-1 rounded transition"
+                  aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="w-5 h-5 stroke-[2.8] text-black" />
+                  ) : (
+                    <Eye className="w-5 h-5 stroke-[2.8] text-black" />
+                  )}
+                </button>
+              </div>
               {confirmPassword.length > 0 && !matches && (
                 <p className="text-[10px] text-st-late mt-1">The entries do not match.</p>
               )}

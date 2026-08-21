@@ -100,7 +100,7 @@ export const CloseMatterModal: React.FC<CloseMatterModalProps> = ({
 
           <div>
             <label className="block text-[11px] font-bold text-ink-2 uppercase tracking-wider mb-1">
-              Final Closure Notes & Secretariat Remarks *
+              Final Closure Notes &amp; Governance Remarks *
             </label>
             <textarea
               required
@@ -115,16 +115,17 @@ export const CloseMatterModal: React.FC<CloseMatterModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-lg border border-line-strong text-ink-2 text-xs font-medium hover:bg-surface-2"
+              className="px-4 py-2 rounded-lg border border-line-strong text-ink-2 text-xs font-medium hover:bg-surface-2 transition"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2 rounded-lg bg-surface dark:bg-surface-2 hover:bg-surface-2 text-white font-bold text-xs shadow-card transition disabled:opacity-50"
+              className="px-5 py-2 rounded-lg bg-nib-brown-800 hover:bg-nib-brown-900 text-nib-gold-100 font-bold text-xs shadow-card transition disabled:opacity-50 flex items-center gap-1.5"
             >
-              {isSubmitting ? 'Closing...' : 'Formally Close Matter'}
+              <Lock className="w-3.5 h-3.5" />
+              <span>{isSubmitting ? 'Closing...' : 'Formally Close Matter'}</span>
             </button>
           </div>
         </form>

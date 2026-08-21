@@ -13,6 +13,7 @@ export interface NavCounts {
   overdue: number;
   pendingActions: number;
   decisions: number;
+  closed?: number;
 }
 
 interface SidebarProps {
@@ -48,7 +49,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const badgeFor = (item: NavItem): number | null => {
     if (!item.badge) return null;
     const value = counts[item.badge];
-    return value > 0 ? value : null;
+    return value && value > 0 ? value : null;
   };
 
   const NavButton: React.FC<{ item: NavItem }> = ({ item }) => {

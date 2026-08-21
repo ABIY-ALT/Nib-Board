@@ -24,10 +24,16 @@ export async function POST(req: Request, { params }: Params) {
 
     return transaction(async (tx) => {
       await lockMatter(tx, id);
-      const matter = (await tx.matter.findUnique({ where: { id } }))!;
+      const matter = (await tx.matter.findUnique({
+        where: { id },
+        include: { currentOwner: { select: { role: true, name: true } } },
+      }))!;
 
-      if (matter.currentOwnerId !== user.id) {
-        throw new HttpError(403, 'Only the current assigned owner can accept ownership.');
+      const isOwner = matter.currentOwnerId === user.id;
+      const isCeoSecretariatActingForCeo = user.role === 'CEO_SECRETARIAT' && matter.currentOwner.role === 'CEO';
+
+      if (!isOwner && !isCeoSecretariatActingForCeo) {
+        throw new HttpError(403, 'Only the current assigned owner (or CEO Secretariat) can accept ownership.');
       }
       if (matter.status === 'Closed') {
         throw new HttpError(409, 'This BOD matter is closed.');

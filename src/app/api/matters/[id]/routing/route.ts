@@ -20,6 +20,7 @@ type Params = { params: Promise<{ id: string }> };
 
 const LEVEL_FOR_ROLE: Record<string, WorkflowNode['level']> = {
   CEO: 'CEO',
+  CEO_SECRETARIAT: 'CEO',
   CHIEF: 'CHIEF',
   DEPUTY_CHIEF: 'DEPUTY_CHIEF',
   DIRECTOR: 'DIRECTOR',
@@ -30,6 +31,7 @@ const LEVEL_FOR_ROLE: Record<string, WorkflowNode['level']> = {
 const RANK: Record<string, number> = {
   BOARD_SECRETARIAT: 0,
   CEO: 1,
+  CEO_SECRETARIAT: 1,
   CHIEF: 2,
   DEPUTY_CHIEF: 3,
   DIRECTOR: 4,
@@ -68,11 +70,15 @@ export async function POST(req: Request, { params }: Params) {
         throw new HttpError(409, 'This BOD matter is closed and can no longer be routed.');
       }
 
-      // Only the person holding the matter can move it on.
-      if (matter.currentOwnerId !== user.id) {
+      // Only the person holding the matter (or CEO_SECRETARIAT acting for CEO) can move it on.
+      const isOwner = matter.currentOwnerId === user.id;
+      const isCeoSecretariatActingForCeo = user.role === 'CEO_SECRETARIAT' && (matter.currentOwner.role === 'CEO' || isOwner);
+      const isBoardSecretariat = user.role === 'BOARD_SECRETARIAT';
+
+      if (!isOwner && !isCeoSecretariatActingForCeo && !isBoardSecretariat) {
         throw new HttpError(
           403,
-          'You are not the current owner of this matter and cannot route it.'
+          'You are not authorized to route this matter.'
         );
       }
 
@@ -87,7 +93,7 @@ export async function POST(req: Request, { params }: Params) {
       const target = await getUser(tx, targetUserId!);
       if (!target) badRequest('Target recipient user not found');
 
-      if (target.id === user.id) {
+      if (target.id === user.id || target.id === matter.currentOwnerId) {
         badRequest('A matter cannot be routed to its current owner.');
       }
 
@@ -95,7 +101,7 @@ export async function POST(req: Request, { params }: Params) {
       // back up as an assignment.
       const fromRank = RANK[user.role] ?? 99;
       const toRank = RANK[target.role] ?? 99;
-      if (toRank <= fromRank) {
+      if (toRank <= fromRank && !(user.role === 'CEO_SECRETARIAT' && target.role === 'CHIEF')) {
         badRequest(
           `A matter cannot be routed from ${user.role} to ${target.role}: routing moves down the operational hierarchy.`
         );

@@ -3,8 +3,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
+  Building2,
   CheckCircle,
+  ChevronLeft,
+  ChevronRight,
   Database,
+  FileSpreadsheet,
   Info,
   KeyRound,
   Lock,
@@ -41,6 +45,7 @@ import { AuditLogEntry, BODMatter, User } from '@/lib/types';
 import { USER_ADMIN_ROLES } from '@/lib/users';
 import { UserFormModal } from '@/components/admin/UserFormModal';
 import { RolesMatrix } from '@/components/admin/RolesMatrix';
+import { DepartmentsManager } from '@/components/admin/DepartmentsManager';
 
 /** A directory row as the administration screen sees it: with its account state. */
 type AdminUser = User & { isActive: boolean };
@@ -464,111 +469,442 @@ export const SettingsView: React.FC = () => {
     }
   };
 
+  const [activeTab, setActiveTab] = useState<'DIRECTORATES' | 'ROLES' | 'CLASSIFICATIONS' | 'AUDIT'>('DIRECTORATES');
+
   return (
-    <div className="space-y-6">
-      <PageHeader title={item.title} description={item.description} />
+    <div className="space-y-4">
+      <PageHeader
+        title={item.title}
+        description="Configure institutional directorates, custom role permissions, matter classifications, and security policy."
+        actions={
+          <div className="flex flex-wrap items-center gap-1 bg-surface border border-line rounded-lg p-1 shadow-xs">
+            <button
+              onClick={() => setActiveTab('DIRECTORATES')}
+              className={cn(
+                'px-3 py-1.5 rounded-md text-xs font-semibold transition flex items-center gap-1.5',
+                activeTab === 'DIRECTORATES'
+                  ? 'bg-nib-gold-500 text-nib-brown-950 shadow-xs'
+                  : 'text-ink-2 hover:text-ink hover:bg-surface-2'
+              )}
+            >
+              <Building2 className="w-3.5 h-3.5" />
+              <span>Directorates & Registry</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('ROLES')}
+              className={cn(
+                'px-3 py-1.5 rounded-md text-xs font-semibold transition flex items-center gap-1.5',
+                activeTab === 'ROLES'
+                  ? 'bg-nib-gold-500 text-nib-brown-950 shadow-xs'
+                  : 'text-ink-2 hover:text-ink hover:bg-surface-2'
+              )}
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Roles & Permissions</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('CLASSIFICATIONS')}
+              className={cn(
+                'px-3 py-1.5 rounded-md text-xs font-semibold transition flex items-center gap-1.5',
+                activeTab === 'CLASSIFICATIONS'
+                  ? 'bg-nib-gold-500 text-nib-brown-950 shadow-xs'
+                  : 'text-ink-2 hover:text-ink hover:bg-surface-2'
+              )}
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>Classifications & Security</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('AUDIT')}
+              className={cn(
+                'px-3 py-1.5 rounded-md text-xs font-semibold transition flex items-center gap-1.5',
+                activeTab === 'AUDIT'
+                  ? 'bg-nib-gold-500 text-nib-brown-950 shadow-xs'
+                  : 'text-ink-2 hover:text-ink hover:bg-surface-2'
+              )}
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span>Administrative Audit Log</span>
+            </button>
+          </div>
+        }
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Card 1: Matter Types Management */}
-        <Card>
-          <CardHeader
-            title="Matter Classifications"
-            description="Official categorization applied to every Board direction."
-            icon={<ShieldCheck className="w-4 h-4" />}
-          />
-          <ul className="divide-y divide-line max-h-[22rem] overflow-y-auto">
-            {matterTypes.map((t) => {
-              const inUseCount = usage.get(t) ?? 0;
-              return (
-                <li key={t} className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-surface-2/40 transition">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-[13px] text-ink font-medium truncate">{t}</span>
-                    {inUseCount > 0 ? (
-                      <span className="text-[11px] text-ink-3 tabular shrink-0 bg-surface-2 border border-line px-1.5 py-0.5 rounded">
-                        {inUseCount} in use
-                      </span>
-                    ) : (
-                      <span className="text-[10px] text-ink-3 uppercase tracking-wide border border-line/60 px-1 py-0.5 rounded">
-                        Unused
-                      </span>
+      {activeTab === 'DIRECTORATES' && (
+        <div>
+          <DepartmentsManager />
+        </div>
+      )}
+
+      {activeTab === 'ROLES' && (
+        <div>
+          <RolesMatrix />
+        </div>
+      )}
+
+      {activeTab === 'CLASSIFICATIONS' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {/* Card 1: Matter Types Management */}
+          <Card>
+            <CardHeader
+              title="Matter Classifications"
+              description="Official categorization applied to every Board direction."
+              icon={<ShieldCheck className="w-4 h-4 text-nib-gold-600" />}
+            />
+            <ul className="divide-y divide-line max-h-[22rem] overflow-y-auto">
+              {matterTypes.map((t) => {
+                const inUseCount = usage.get(t) ?? 0;
+                return (
+                  <li key={t} className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-surface-2/40 transition">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-[13px] text-ink font-medium truncate">{t}</span>
+                      {inUseCount > 0 ? (
+                        <span className="text-[11px] text-ink-3 tabular shrink-0 bg-surface-2 border border-line px-1.5 py-0.5 rounded">
+                          {inUseCount} in use
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-ink-3 uppercase tracking-wide border border-line/60 px-1 py-0.5 rounded">
+                          Unused
+                        </span>
+                      )}
+                    </div>
+                    {canConfigure && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        loading={deletingType === t}
+                        onClick={() => void handleRemoveType(t)}
+                        icon={<Trash2 className="w-3.5 h-3.5 text-ink-3 hover:text-st-late" />}
+                        aria-label={`Remove ${t}`}
+                      />
                     )}
-                  </div>
-                  {canConfigure && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      loading={deletingType === t}
-                      onClick={() => void handleRemoveType(t)}
-                      icon={<Trash2 className="w-3.5 h-3.5 text-ink-3 hover:text-st-late" />}
-                      aria-label={`Remove ${t}`}
+                  </li>
+                );
+              })}
+            </ul>
+
+            {canConfigure && (
+              <form onSubmit={submitNewType} className="p-4 border-t border-line bg-surface-2/50">
+                <Field
+                  label="Add a matter type"
+                  htmlFor="new-matter-type"
+                  hint="New types become available immediately for matter registration."
+                  error={error ?? undefined}
+                >
+                  <div className="flex gap-2">
+                    <input
+                      id="new-matter-type"
+                      value={newType}
+                      onChange={(e) => setNewType(e.target.value)}
+                      placeholder="e.g. Board Advisory"
+                      className={inputClass}
                     />
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      loading={busy}
+                      disabled={!newType.trim()}
+                      icon={<Plus className="w-3.5 h-3.5" />}
+                    >
+                      Add
+                    </Button>
+                  </div>
+                </Field>
+              </form>
+            )}
+          </Card>
 
-          {canConfigure && (
-            <form onSubmit={submitNewType} className="p-4 border-t border-line bg-surface-2/50">
-              <Field
-                label="Add a matter type"
-                htmlFor="new-matter-type"
-                hint="New types become available immediately for matter registration."
-                error={error ?? undefined}
-              >
-                <div className="flex gap-2">
-                  <input
-                    id="new-matter-type"
-                    value={newType}
-                    onChange={(e) => setNewType(e.target.value)}
-                    placeholder="e.g. Board Advisory"
-                    className={inputClass}
-                  />
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    loading={busy}
-                    disabled={!newType.trim()}
-                    icon={<Plus className="w-3.5 h-3.5" />}
-                  >
-                    Add
-                  </Button>
+          {/* Card 2: Security & Session Policy */}
+          <Card>
+            <CardHeader
+              title="Authentication & Security Policy"
+              description="Credential constraints and session lifetime protections."
+              icon={<Lock className="w-4 h-4 text-nib-gold-600" />}
+            />
+            <dl className="divide-y divide-line text-[13px]">
+              {[
+                ['Password Complexity', 'Minimum 6 characters, excludes name/email parts, non-repeating'],
+                ['Invitation / Setup Token', '24 hours validity, 256-bit random entropy, SHA-256 stored'],
+                ['Session Idle Timeout', '30 minutes sliding window'],
+                ['Absolute Session Lifetime', '8 hours maximum from sign-in'],
+                ['Account Lockout Rule', '5 consecutive failed attempts locks account for 15 minutes'],
+                ['Source Rate Limiting', 'Maximum 20 failed attempts per IP within 15 minutes'],
+              ].map(([k, v]) => (
+                <div key={k} className="px-4 py-2.5">
+                  <dt className="text-[11px] font-semibold uppercase tracking-wide text-ink-3">{k}</dt>
+                  <dd className="text-ink-2 mt-0.5 leading-relaxed">{v}</dd>
                 </div>
-              </Field>
-            </form>
-          )}
-        </Card>
+              ))}
+            </dl>
+          </Card>
+        </div>
+      )}
 
-        {/* Card 2: Security & Session Policy */}
-        <Card>
-          <CardHeader
-            title="Authentication & Security Policy"
-            description="Credential constraints and session lifetime protections."
-            icon={<Lock className="w-4 h-4 text-nib-gold-600" />}
-          />
-          <dl className="divide-y divide-line text-[13px]">
-            {[
-              ['Password Complexity', 'Minimum 6 characters, excludes name/email parts, non-repeating'],
-              ['Invitation / Setup Token', '24 hours validity, 256-bit random entropy, SHA-256 stored'],
-              ['Session Idle Timeout', '30 minutes sliding window'],
-              ['Absolute Session Lifetime', '8 hours maximum from sign-in'],
-              ['Account Lockout Rule', '5 consecutive failed attempts locks account for 15 minutes'],
-              ['Source Rate Limiting', 'Maximum 20 failed attempts per IP within 15 minutes'],
-            ].map(([k, v]) => (
-              <div key={k} className="px-4 py-2.5">
-                <dt className="text-[11px] font-semibold uppercase tracking-wide text-ink-3">{k}</dt>
-                <dd className="text-ink-2 mt-0.5 leading-relaxed">{v}</dd>
-              </div>
-            ))}
-          </dl>
-        </Card>
-      </div>
-
-      {/* Editable Roles & Permissions Matrix */}
-      <div>
-        <RolesMatrix />
-      </div>
+      {activeTab === 'AUDIT' && (
+        <div>
+          <GovernanceAuditLogCard />
+        </div>
+      )}
     </div>
+  );
+};
+
+/* ────────────────────────────────────────────────────── Governance & System Settings Audit Log */
+
+interface SystemAuditEvent {
+  id: string;
+  event: string;
+  occurredAt: string;
+  userId?: string | null;
+  emailAttempted?: string | null;
+  ip?: string | null;
+  userAgent?: string | null;
+  detail?: string | null;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    title: string;
+  } | null;
+}
+
+const EVENT_PILL_STYLE: Record<string, string> = {
+  ROLE_CONFIG_UPDATED: 'bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800',
+  MATTER_TYPE_CREATED: 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800',
+  MATTER_TYPE_DELETED: 'bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800',
+  DEPARTMENT_CREATED: 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800',
+  DEPARTMENT_UPDATED: 'bg-cyan-100 text-cyan-800 border-cyan-300 dark:bg-cyan-950/40 dark:text-cyan-300 dark:border-cyan-800',
+  DEPARTMENT_DELETED: 'bg-red-100 text-red-800 border-red-300 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800',
+  USER_CREATED: 'bg-nib-gold-100 text-nib-brown-800 border-nib-gold-300 dark:bg-nib-brown-800 dark:text-nib-gold-200 dark:border-nib-brown-700',
+  USER_UPDATED: 'bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800',
+  USER_DEACTIVATED: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800',
+  USER_REACTIVATED: 'bg-teal-100 text-teal-800 border-teal-300 dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-800',
+  PASSWORD_RESET: 'bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800',
+  ACCOUNT_LOCKED: 'bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800',
+  LOGIN_FAILED: 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
+};
+
+export const GovernanceAuditLogCard: React.FC = () => {
+  const [systemEvents, setSystemEvents] = useState<SystemAuditEvent[]>([]);
+  const [systemLoading, setSystemLoading] = useState(false);
+  const [systemFailed, setSystemFailed] = useState(false);
+  const [systemFilter, setSystemFilter] = useState('ALL');
+  const [systemSearch, setSystemSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(15);
+
+  const loadSystemAudit = React.useCallback(async () => {
+    setSystemLoading(true);
+    setSystemFailed(false);
+    try {
+      const res = await fetch('/api/admin/audit-logs?limit=500');
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setSystemEvents(data.events || []);
+    } catch {
+      setSystemFailed(true);
+      setSystemEvents([]);
+    } finally {
+      setSystemLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadSystemAudit();
+  }, [loadSystemAudit]);
+
+  const filteredSystemEvents = useMemo(() => {
+    return systemEvents.filter((ev) => {
+      const matchType = systemFilter === 'ALL' || ev.event === systemFilter;
+      const q = systemSearch.trim().toLowerCase();
+      const matchSearch =
+        !q ||
+        ev.event.toLowerCase().includes(q) ||
+        (ev.detail && ev.detail.toLowerCase().includes(q)) ||
+        (ev.user?.name && ev.user.name.toLowerCase().includes(q)) ||
+        (ev.emailAttempted && ev.emailAttempted.toLowerCase().includes(q));
+      return matchType && matchSearch;
+    });
+  }, [systemEvents, systemFilter, systemSearch]);
+
+  // Reset to page 1 on filter or search change
+  useEffect(() => {
+    setPage(1);
+  }, [systemFilter, systemSearch, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredSystemEvents.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const startIdx = (currentPage - 1) * pageSize;
+  const paginatedEvents = filteredSystemEvents.slice(startIdx, startIdx + pageSize);
+
+  return (
+    <Card className="overflow-hidden flex flex-col">
+      <CardHeader
+        title="Governance Settings & Administrative Audit Log"
+        description="Immutable record of administrative operations: role permissions adjustments, matter classification changes, directorate updates, and officer provisioning."
+        icon={<ShieldCheck className="w-4 h-4 text-nib-gold-600" />}
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              value={systemSearch}
+              onChange={(e) => setSystemSearch(e.target.value)}
+              placeholder="Search audit details or officer..."
+              className={cn(inputClass, 'w-64 text-xs')}
+            />
+            <select
+              value={systemFilter}
+              onChange={(e) => setSystemFilter(e.target.value)}
+              className="bg-surface-2 border border-line rounded-lg p-1.5 text-xs text-ink font-medium"
+            >
+              <option value="ALL">All Event Types</option>
+              <option value="ROLE_CONFIG_UPDATED">Role & Permission Updates</option>
+              <option value="MATTER_TYPE_CREATED">Matter Type Created</option>
+              <option value="MATTER_TYPE_DELETED">Matter Type Deleted</option>
+              <option value="DEPARTMENT_CREATED">Directorate Created</option>
+              <option value="DEPARTMENT_UPDATED">Directorate Updated</option>
+              <option value="DEPARTMENT_DELETED">Directorate Deleted</option>
+              <option value="USER_CREATED">Officer Account Provisioned</option>
+              <option value="USER_UPDATED">Account Role / Info Updated</option>
+              <option value="USER_DEACTIVATED">Account Deactivated</option>
+              <option value="PASSWORD_RESET">Password Reset</option>
+            </select>
+            <Button
+              size="sm"
+              variant="ghost"
+              loading={systemLoading}
+              onClick={loadSystemAudit}
+              icon={<RefreshCw className="w-3.5 h-3.5" />}
+              aria-label="Refresh Audit Log"
+            />
+          </div>
+        }
+      />
+
+      {systemLoading ? (
+        <TableSkeleton rows={8} cols={4} />
+      ) : systemFailed ? (
+        <ErrorState
+          title="Unable to load System Audit Log"
+          message="Failed to retrieve institutional administration audit records."
+          onRetry={loadSystemAudit}
+        />
+      ) : filteredSystemEvents.length === 0 ? (
+        <EmptyState
+          title="No System Audit Events Found"
+          message="No administrative or governance configuration events match your filter."
+        />
+      ) : (
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-surface-2/70 border-b border-line text-[11px] font-semibold text-ink-3 uppercase tracking-wider">
+                  <th className="py-3 px-4">Timestamp</th>
+                  <th className="py-3 px-4">Audit Event Type</th>
+                  <th className="py-3 px-4">Acting Officer / User</th>
+                  <th className="py-3 px-4">Action Detail & Scope</th>
+                  <th className="py-3 px-4">Source IP</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line text-xs">
+                {paginatedEvents.map((ev) => (
+                  <tr key={ev.id} className="hover:bg-surface-2/40 transition">
+                    <td className="py-3 px-4 font-mono text-[11px] text-ink-3 whitespace-nowrap">
+                      {formatDateTime(ev.occurredAt)}
+                    </td>
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <span
+                        className={cn(
+                          'px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide border',
+                          EVENT_PILL_STYLE[ev.event] ?? 'bg-slate-100 text-slate-800 border-slate-300'
+                        )}
+                      >
+                        {ev.event.replace(/_/g, ' ')}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4">
+                      {ev.user ? (
+                        <div>
+                          <div className="font-semibold text-ink">{ev.user.name}</div>
+                          <div className="text-[10px] text-ink-3 font-mono">
+                            {ROLE_LABEL[ev.user.role] ?? ev.user.role}
+                          </div>
+                        </div>
+                      ) : ev.emailAttempted ? (
+                        <span className="font-mono text-ink-3">{ev.emailAttempted}</span>
+                      ) : (
+                        <span className="text-ink-3 italic">System Automated</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4 text-ink-2 max-w-md leading-relaxed font-medium">
+                      {ev.detail || '—'}
+                    </td>
+                    <td className="py-3 px-4 font-mono text-[11px] text-ink-3 whitespace-nowrap">
+                      {ev.ip || '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination Footer */}
+          <div className="p-3 border-t border-line bg-surface-2/40 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2 text-ink-3">
+              <span>
+                Showing <strong className="text-ink font-semibold">{filteredSystemEvents.length > 0 ? startIdx + 1 : 0}</strong> to{' '}
+                <strong className="text-ink font-semibold">
+                  {Math.min(startIdx + pageSize, filteredSystemEvents.length)}
+                </strong>{' '}
+                of <strong className="text-ink font-semibold">{filteredSystemEvents.length}</strong> events
+              </span>
+              <span className="text-line-strong">|</span>
+              <div className="flex items-center gap-1">
+                <span>Per page:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => setPageSize(Number(e.target.value))}
+                  className="bg-surface border border-line rounded px-1.5 py-0.5 text-xs text-ink font-medium"
+                >
+                  <option value={10}>10</option>
+                  <option value={15}>15</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={currentPage <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                icon={<ChevronLeft className="w-3.5 h-3.5" />}
+              >
+                Previous
+              </Button>
+
+              <div className="flex items-center gap-1 px-2 text-xs font-semibold text-ink">
+                <span>Page {currentPage} of {totalPages}</span>
+              </div>
+
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={currentPage >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                <span>Next</span>
+                <ChevronRight className="w-3.5 h-3.5 ml-1" />
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
+    </Card>
   );
 };
 
@@ -598,12 +934,6 @@ export const AuditTrailView: React.FC<{ onSelectMatter: (m: BODMatter) => void }
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
   const [query, setQuery] = useState('');
-
-  /**
-   * The history of a long-running matter is dozens of events; an auditor asking
-   * "what happened between the September and December Board meetings" needs to
-   * bound it. Both ends are inclusive and compared on the event's own date.
-   */
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
 

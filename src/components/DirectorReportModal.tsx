@@ -122,9 +122,9 @@ export const DirectorReportModal: React.FC<DirectorReportModalProps> = ({
               <FileCheck className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-sm">Director Final Implementation Report</h3>
+              <h3 className="font-bold text-sm">Official Implementation Report</h3>
               <p className="text-[11px] text-emerald-200">
-                Official Operational Account for {matter.id} ({matter.matterType})
+                Execution &amp; Operational Account for {matter.id} ({matter.matterType})
               </p>
             </div>
           </div>
@@ -294,12 +294,13 @@ export const DirectorReportModal: React.FC<DirectorReportModalProps> = ({
           {/* Evidence File Attachment */}
           <div className="p-3 bg-surface-2 rounded-[--radius-card] border border-line">
             <div className="flex items-center gap-2 mb-2">
-              <Upload className="w-3.5 h-3.5 text-st-done" />
+              <Upload className="w-3.5 h-3.5 text-nib-gold-600" />
               <div>
-                <span className="font-semibold text-ink text-xs">Supporting evidence</span>
+                <span className="font-semibold text-ink text-xs">
+                  Supporting Evidence / Attachments <span className="text-ink-3 font-normal">(Optional)</span>
+                </span>
                 <p className="text-[10px] text-ink-3">
-                  Certified logs, signed memos, training sheets or test certificates — optional,
-                  but the reviewer confirms completion against it
+                  Upload signed memos, audit sign-offs, or certificates if available. Written explanation above is mandatory.
                 </p>
               </div>
             </div>
@@ -312,10 +313,10 @@ export const DirectorReportModal: React.FC<DirectorReportModalProps> = ({
             />
           </div>
 
-          {/* General Director Comments */}
+          {/* General Officer Comments */}
           <div>
             <label className="block text-[10px] font-semibold text-ink-3 uppercase mb-1">
-              Director Remarks & Conclusion
+              Implementing Officer Remarks &amp; Conclusion
             </label>
             <input
               type="text"

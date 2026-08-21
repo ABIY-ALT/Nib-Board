@@ -272,12 +272,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectMatter, onNavigate
             description="Where Board matters currently sit, and how long they have been there."
             icon={<Layers className="w-4 h-4" />}
           />
-          <div className="p-4 space-y-1.5">
+          <div className="p-4 space-y-2">
             {stages.map((s, i) => {
               const share = open.length > 0 ? (s.count / Math.max(1, matters.length)) * 100 : 0;
               return (
                 <div key={s.id} className="flex items-center gap-3">
-                  <div className="w-40 shrink-0 flex items-center gap-2">
+                  <div className="w-44 shrink-0 flex items-center gap-2">
                     <span
                       className={cn(
                         'w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-bold shrink-0 tabular',
@@ -291,23 +291,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectMatter, onNavigate
                     <span className="text-[12px] font-medium text-ink truncate">{s.label}</span>
                   </div>
 
-                  <div className="flex-1 min-w-0 h-6 bg-surface-2 rounded overflow-hidden relative">
+                  <div className="flex-1 min-w-0 h-6 bg-surface-2 rounded-md border border-line/60 overflow-hidden relative">
                     <div
                       className={cn(
                         'h-full transition-[width] duration-500',
-                        s.overdue > 0 ? 'bg-st-late/25' : 'bg-nib-gold-200 dark:bg-nib-brown-600/40'
+                        s.overdue > 0 ? 'bg-st-late/25' : s.count > 0 ? 'bg-nib-gold-400/40 dark:bg-nib-gold-500/30' : 'w-0'
                       )}
-                      style={{ width: `${Math.max(share, s.count > 0 ? 4 : 0)}%` }}
+                      style={{ width: `${Math.max(share, s.count > 0 ? 8 : 0)}%` }}
                     />
-                    <span className="absolute inset-y-0 left-2 flex items-center text-[11px] font-semibold text-ink tabular">
-                      {s.count > 0 ? s.count : ''}
+                    <span className="absolute inset-y-0 left-2.5 flex items-center text-[11px] font-semibold text-ink tabular">
+                      {s.count > 0 ? `${s.count} matter${s.count > 1 ? 's' : ''}` : <span className="text-ink-3 font-normal">0 matters</span>}
                     </span>
                   </div>
 
                   <div className="w-28 shrink-0 text-right">
                     {s.count > 0 ? (
                       <>
-                        <span className="text-[11px] text-ink-2 tabular">avg {s.averageAge}d</span>
+                        <span className="text-[11px] font-semibold text-ink-2 tabular">avg {s.averageAge}d</span>
                         {s.overdue > 0 && (
                           <span className="block text-[10px] font-semibold text-st-late tabular">
                             {s.overdue} overdue
@@ -315,7 +315,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectMatter, onNavigate
                         )}
                       </>
                     ) : (
-                      <span className="text-[11px] text-ink-3">—</span>
+                      <span className="text-[11px] text-ink-3">0 active</span>
                     )}
                   </div>
                 </div>

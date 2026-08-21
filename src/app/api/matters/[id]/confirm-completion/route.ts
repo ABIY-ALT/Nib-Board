@@ -146,20 +146,20 @@ export async function POST(req: Request, { params }: Params) {
           type: 'COMPLETION_CONFIRMED',
         });
       } else {
-        const targetDirectorId = matter.responsibleDirectorId || report.submittedById;
-        const director = (await getUser(tx, targetDirectorId)) || user;
+        const targetOfficerId = report.submittedById ?? matter.responsibleDirectorId ?? matter.responsibleDeputyChiefId ?? matter.responsibleChiefId;
+        const officer = targetOfficerId ? await getUser(tx, targetOfficerId) : null;
+        const finalOfficer = officer || user;
 
         await tx.matter.update({
           where: { id },
           data: {
             status: 'In Progress',
             progress: 60,
-            currentOwnerId: director.id,
-            currentStage: 'Revision requested by reviewer',
+            currentOwnerId: finalOfficer.id,
+            currentStage: `Revision requested by ${user.title}`,
             overallStatus: 'Active - Revision Required',
-            nextRequiredAction:
-              'Director to address review feedback and resubmit the Implementation Report',
-            nextActionRole: 'DIRECTOR',
+            nextRequiredAction: `${finalOfficer.name} (${finalOfficer.title}) to address review feedback and resubmit the Implementation Report`,
+            nextActionRole: finalOfficer.role,
             lastAction: `${user.name} (${user.title}) requested revision of the Implementation Report`,
             lastActionDate: new Date(),
             lastActionUserId: user.id,
@@ -172,17 +172,17 @@ export async function POST(req: Request, { params }: Params) {
           user,
           action: 'Completion Reviewed',
           previousOwner: { id: user.id, name: user.name, role: user.role },
-          newOwner: { id: director.id, name: director.name, role: director.role },
+          newOwner: { id: finalOfficer.id, name: finalOfficer.name, role: finalOfficer.role },
           previousStatus,
           newStatus: 'In Progress',
           comment: `Revision requested by ${user.title}: ${reviewNotes}`,
         });
 
-        const recipients = await filterNotifiableUsers(tx, id, [director.id]);
+        const recipients = await filterNotifiableUsers(tx, id, [finalOfficer.id]);
         await notify(tx, recipients, {
           matterId: id,
           title: 'Revision Requested on Implementation Report',
-          message: `${user.name} asked for changes to your report on ${id}.`,
+          message: `${user.name} asked for changes to your implementation report on ${id}.`,
           type: 'STATUS_CHANGE',
         });
       }

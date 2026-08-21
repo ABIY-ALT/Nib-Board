@@ -83,6 +83,7 @@ const ROLE_RANK: Record<string, number> = {
   BOARD_MEMBER: 1,
   BOARD_SECRETARIAT: 2,
   CEO: 3,
+  CEO_SECRETARIAT: 3,
   CHIEF: 4,
   DEPUTY_CHIEF: 5,
   DIRECTOR: 6,

@@ -110,24 +110,31 @@ export const MatterDetail: React.FC<MatterDetailProps> = ({
   }, [loadAudit, matter.updatedAt]);
 
   /* ── Permissions. The API is authoritative; these only decide what to offer ── */
+  const report = matter.implementationReport;
   const isOwner = matter.currentOwnerId === user.id;
+  const isCeoOwner =
+    (user.role === 'CEO' || user.role === 'CEO_SECRETARIAT') &&
+    (isOwner || matter.currentOwnerRole === 'CEO' || matter.currentOwnerRole === 'CEO_SECRETARIAT');
   const isClosed = matter.status === 'Closed';
   const needsAccept =
-    isOwner && !isClosed && ['Received', 'Under Review', 'Assigned'].includes(matter.status);
-  const canRoute = isOwner && !isClosed && user.role !== 'DIRECTOR';
+    (isOwner || isCeoOwner) && !isClosed && ['Received', 'Under Review', 'Assigned'].includes(matter.status);
+  const canRoute = (isOwner || isCeoOwner) && !isClosed && user.role !== 'DIRECTOR';
   const canReport =
     !isClosed &&
-    user.role === 'DIRECTOR' &&
-    matter.responsibleDirectorId === user.id &&
-    matter.status === 'In Progress';
+    ((user.role === 'DIRECTOR' && (matter.responsibleDirectorId === user.id || isOwner)) ||
+      isCeoOwner ||
+      (user.role === 'CHIEF' && isOwner) ||
+      user.role === 'ADMIN') &&
+    ['In Progress', 'Received', 'Under Review', 'Assigned'].includes(matter.status);
   const canConfirm =
     !isClosed &&
     matter.status === 'Implementation Submitted' &&
-    ['CEO', 'CHIEF', 'DEPUTY_CHIEF', 'BOARD_SECRETARIAT', 'ADMIN'].includes(user.role);
+    (!report?.submittedBy || report.submittedBy !== user.id) &&
+    ['CEO', 'CEO_SECRETARIAT', 'CHIEF', 'DEPUTY_CHIEF', 'BOARD_SECRETARIAT', 'ADMIN'].includes(user.role);
   const canClose =
     !isClosed &&
     matter.status === 'Under Review / Confirmation' &&
-    ['BOARD_SECRETARIAT', 'CEO', 'ADMIN'].includes(user.role);
+    ['BOARD_SECRETARIAT', 'CEO', 'CEO_SECRETARIAT', 'ADMIN'].includes(user.role);
 
   const accept = async () => {
     setAccepting(true);
@@ -146,7 +153,6 @@ export const MatterDetail: React.FC<MatterDetailProps> = ({
 
   const openThreads = matter.clarifications.filter((c) => c.status === 'OPEN');
   const myThread = openThreads.find((c) => c.requestedTo === user.id);
-  const report = matter.implementationReport;
 
   return (
     <div>
@@ -451,13 +457,23 @@ export const MatterDetail: React.FC<MatterDetailProps> = ({
         {tab === 'implementation' && (
           <Card>
             <CardHeader
-              title="Director's Implementation Report"
-              description="What was actually done about this Board direction."
+              title={
+                report
+                  ? `${report.directorTitle || 'Executive'} Implementation Report`
+                  : matter.currentOwnerRole === 'CEO' || matter.currentOwnerRole === 'CEO_SECRETARIAT'
+                  ? 'Executive Implementation Report (CEO Office)'
+                  : matter.currentOwnerRole === 'CHIEF'
+                  ? 'Chief Officer Implementation Report'
+                  : matter.currentOwnerRole === 'DEPUTY_CHIEF'
+                  ? 'Deputy Chief Implementation Report'
+                  : 'Directorate Implementation Report'
+              }
+              description="Formal operational execution report and accountability record for this Board direction."
             />
             {!report ? (
               <EmptyState
-                title="No implementation report yet"
-                message="The responsible Director has not yet reported what was done. A Board matter is never complete merely because it reached the Director."
+                title="No implementation report submitted yet"
+                message={`The assigned implementing officer (${matter.currentOwnerName || 'Assigned Owner'} — ${matter.currentOwnerTitle || ROLE_LABEL[matter.currentOwnerRole] || 'Owner'}) has not yet submitted the implementation report. A Board matter is never complete until the assigned owner reports what was executed.`}
               />
             ) : (
               <div>

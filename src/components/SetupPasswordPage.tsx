@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
-import { KeyRound, ShieldCheck, AlertTriangle, Check, Loader2, CheckCircle } from 'lucide-react';
+import { KeyRound, ShieldCheck, AlertTriangle, Check, Loader2, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { passwordRules } from '@/lib/password-policy';
 
 type Phase = 'loading' | 'ready' | 'submitting' | 'success' | 'error';
@@ -28,6 +28,8 @@ export const SetupPasswordPage: React.FC = () => {
 
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Validate the token on mount.
@@ -240,31 +242,59 @@ export const SetupPasswordPage: React.FC = () => {
               <label className="block text-[11px] font-semibold text-ink-2 mb-1">
                 New password
               </label>
-              <input
-                type="password"
-                autoComplete="new-password"
-                autoFocus
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full bg-app border border-line rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-nib-gold-400/60"
-                required
-                disabled={phase === 'submitting'}
-              />
+              <div className="relative">
+                <input
+                  type={showNewPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  autoFocus
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full bg-app border border-line rounded-lg pl-3 pr-9 py-2 text-xs focus:outline-none focus:border-nib-gold-400/60"
+                  required
+                  disabled={phase === 'submitting'}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-black hover:text-neutral-700 p-1 rounded transition"
+                  aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showNewPassword ? (
+                    <EyeOff className="w-5 h-5 stroke-[2.8] text-black" />
+                  ) : (
+                    <Eye className="w-5 h-5 stroke-[2.8] text-black" />
+                  )}
+                </button>
+              </div>
             </div>
 
             <div>
               <label className="block text-[11px] font-semibold text-ink-2 mb-1">
                 Confirm password
               </label>
-              <input
-                type="password"
-                autoComplete="new-password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full bg-app border border-line rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-nib-gold-400/60"
-                required
-                disabled={phase === 'submitting'}
-              />
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full bg-app border border-line rounded-lg pl-3 pr-10 py-2 text-xs focus:outline-none focus:border-nib-gold-400/60"
+                  required
+                  disabled={phase === 'submitting'}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-black hover:text-neutral-700 p-1 rounded transition"
+                  aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="w-5 h-5 stroke-[2.8] text-black" />
+                  ) : (
+                    <Eye className="w-5 h-5 stroke-[2.8] text-black" />
+                  )}
+                </button>
+              </div>
               {confirmPassword.length > 0 && !matches && (
                 <p className="text-[10px] text-st-late mt-1">The entries do not match.</p>
               )}

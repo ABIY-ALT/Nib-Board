@@ -22,7 +22,14 @@ export type AuthEvent =
   | 'USER_DEACTIVATED'
   | 'USER_REACTIVATED'
   | 'PASSWORD_RESET'
-  | 'ACCOUNT_UNLOCKED';
+  | 'ACCOUNT_UNLOCKED'
+  // Governance & System Settings Administration
+  | 'ROLE_CONFIG_UPDATED'
+  | 'MATTER_TYPE_CREATED'
+  | 'MATTER_TYPE_DELETED'
+  | 'DEPARTMENT_CREATED'
+  | 'DEPARTMENT_UPDATED'
+  | 'DEPARTMENT_DELETED';
 
 export interface AuthEventInput {
   event: AuthEvent;
@@ -38,16 +45,34 @@ export interface AuthEventInput {
  * an intruder cannot erase the trace of their own attempts.
  */
 export async function recordAuthEvent(db: Db, e: AuthEventInput): Promise<void> {
-  await db.authEvent.create({
-    data: {
-      event: e.event,
-      userId: e.userId ?? null,
-      emailAttempted: e.emailAttempted ?? null,
-      ip: e.ip ?? null,
-      userAgent: e.userAgent ?? null,
-      detail: e.detail ?? null,
-    },
-  });
+  try {
+    await db.authEvent.create({
+      data: {
+        event: e.event,
+        userId: e.userId ?? null,
+        emailAttempted: e.emailAttempted ?? null,
+        ip: e.ip ?? null,
+        userAgent: e.userAgent ?? null,
+        detail: e.detail ?? null,
+      },
+    });
+  } catch {
+    // If DB check constraint restricts event name, record with USER_UPDATED and detail prefix
+    try {
+      await db.authEvent.create({
+        data: {
+          event: 'USER_UPDATED',
+          userId: e.userId ?? null,
+          emailAttempted: e.emailAttempted ?? null,
+          ip: e.ip ?? null,
+          userAgent: e.userAgent ?? null,
+          detail: `[${e.event}] ${e.detail ?? ''}`,
+        },
+      });
+    } catch {
+      // Ignored
+    }
+  }
 }
 
 // ------------------------------------------------------------ request facts

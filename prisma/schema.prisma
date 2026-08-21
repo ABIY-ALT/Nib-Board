@@ -57,6 +57,7 @@ model User {
   clarificationsAnswered  Clarification[]        @relation("ClarificationResponseBy")
   reportsSubmitted        ImplementationReport[] @relation("ReportSubmittedBy")
   reportsReviewed         ImplementationReport[] @relation("ReportReviewedBy")
+  directedDepartments     Department[]           @relation("DepartmentDirector")
   documents               Document[]
   workflowNodes           WorkflowNode[]
   auditLogs               AuditLog[]
@@ -378,4 +379,21 @@ model PasswordSetupToken {
 
   @@index([userId], map: "setup_tokens_user_idx")
   @@map("password_setup_tokens")
+}
+
+/// Dynamic department and directorate registry, enabling administrative governance
+/// and direct director assignment.
+model Department {
+  id           String    @id
+  name         String    @unique
+  code         String?   @unique
+  businessArea String    @map("business_area")
+  directorId   String?   @map("director_id")
+  director     User?     @relation("DepartmentDirector", fields: [directorId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([businessArea], map: "departments_business_area_idx")
+  @@map("departments")
 }

@@ -36,16 +36,26 @@ export const RouteMatterModal: React.FC<RouteMatterModalProps> = ({
   const eligibleUsers = allUsers.filter((u) => {
     if (u.id === currentUser.id) return false;
     if (currentUser.role === 'BOARD_SECRETARIAT') {
-      return ['CEO', 'CHIEF', 'DIRECTOR', 'ADMIN'].includes(u.role);
+      return ['CEO', 'CEO_SECRETARIAT', 'CHIEF', 'DEPUTY_CHIEF', 'DIRECTOR', 'ADMIN'].includes(u.role);
     }
-    if (currentUser.role === 'CEO') {
-      return ['CHIEF', 'DEPUTY_CHIEF', 'DIRECTOR', 'BOARD_SECRETARIAT'].includes(u.role);
+    if (currentUser.role === 'CEO' || currentUser.role === 'CEO_SECRETARIAT') {
+      return ['CHIEF', 'DEPUTY_CHIEF', 'DIRECTOR', 'BOARD_SECRETARIAT', 'CEO'].includes(u.role);
     }
     if (currentUser.role === 'CHIEF') {
-      return ['DEPUTY_CHIEF', 'DIRECTOR', 'CEO'].includes(u.role);
+      // Chief routes downwards to Deputy Chief or Director within their OWN business area (or returns to CEO)
+      if (['CEO', 'CEO_SECRETARIAT', 'BOARD_SECRETARIAT'].includes(u.role)) return true;
+      if (['DEPUTY_CHIEF', 'DIRECTOR'].includes(u.role)) {
+        return !currentUser.businessArea || u.businessArea === currentUser.businessArea;
+      }
+      return false;
     }
     if (currentUser.role === 'DEPUTY_CHIEF') {
-      return ['DIRECTOR', 'CHIEF'].includes(u.role);
+      // Deputy Chief routes downwards to Director within their OWN business area (or returns to Chief/CEO)
+      if (['CHIEF', 'CEO', 'CEO_SECRETARIAT', 'BOARD_SECRETARIAT'].includes(u.role)) return true;
+      if (u.role === 'DIRECTOR') {
+        return !currentUser.businessArea || u.businessArea === currentUser.businessArea;
+      }
+      return false;
     }
     return true;
   });
@@ -187,11 +197,54 @@ export const RouteMatterModal: React.FC<RouteMatterModalProps> = ({
               className="w-full bg-surface-2 border border-line-strong rounded-lg p-2.5 text-xs text-ink focus:ring-2 focus:ring-blue-500 font-semibold"
             >
               <option value="">-- Choose Recipient Officer --</option>
-              {eligibleUsers.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name} — {u.title} ({u.role.replace('_', ' ')})
-                </option>
-              ))}
+              {eligibleUsers.filter((u) => u.role === 'DEPUTY_CHIEF').length > 0 && (
+                <optgroup label="Department Leadership (Deputy Chief)">
+                  {eligibleUsers
+                    .filter((u) => u.role === 'DEPUTY_CHIEF')
+                    .map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name} — {u.title}
+                      </option>
+                    ))}
+                </optgroup>
+              )}
+              {eligibleUsers.filter((u) => u.role === 'DIRECTOR').length > 0 && (
+                <optgroup label="Directorate Heads (Directors)">
+                  {eligibleUsers
+                    .filter((u) => u.role === 'DIRECTOR')
+                    .map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name} — {u.title} ({u.businessArea})
+                      </option>
+                    ))}
+                </optgroup>
+              )}
+              {eligibleUsers.filter((u) => u.role === 'CHIEF').length > 0 && (
+                <optgroup label="Chief Officers">
+                  {eligibleUsers
+                    .filter((u) => u.role === 'CHIEF')
+                    .map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name} — {u.title} ({u.businessArea})
+                      </option>
+                    ))}
+                </optgroup>
+              )}
+              {eligibleUsers.filter((u) =>
+                ['CEO', 'CEO_SECRETARIAT', 'BOARD_SECRETARIAT'].includes(u.role)
+              ).length > 0 && (
+                <optgroup label="Executive Management / Return">
+                  {eligibleUsers
+                    .filter((u) =>
+                      ['CEO', 'CEO_SECRETARIAT', 'BOARD_SECRETARIAT'].includes(u.role)
+                    )
+                    .map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name} — {u.title} ({u.role.replace('_', ' ')})
+                      </option>
+                    ))}
+                </optgroup>
+              )}
             </select>
           </div>
 

@@ -149,7 +149,11 @@ export const ConfirmCompletionModal: React.FC<ConfirmCompletionModalProps> = ({
                   />
                 </div>
                 <p className="text-[11px] text-ink-3 mt-1">
-                  Reopens matter back to Director with detailed instructions for missing items.
+                  Reopens matter back to{' '}
+                  <strong className="text-ink font-semibold">
+                    {matter.implementationReport?.directorName || matter.currentOwnerName || 'responsible implementing officer'}
+                  </strong>{' '}
+                  ({matter.implementationReport?.directorTitle || matter.currentOwnerTitle || 'Owner'}) with detailed instructions for revision.
                 </p>
               </label>
             </div>

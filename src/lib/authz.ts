@@ -20,10 +20,11 @@ export function visibilityWhere(user: User): Prisma.MatterWhereInput {
 
   switch (user.role) {
     // Institutional oversight: the Board's own secretariat, Board Members,
-    // the CEO and administrators see every Board matter bank-wide.
+    // the CEO, CEO Secretariat and administrators see every Board matter bank-wide.
     case 'BOARD_SECRETARIAT':
     case 'BOARD_MEMBER':
     case 'CEO':
+    case 'CEO_SECRETARIAT':
     case 'ADMIN':
       return {};
 

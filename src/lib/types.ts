@@ -2,6 +2,7 @@ export type Role =
   | 'BOARD_SECRETARIAT'
   | 'BOARD_MEMBER'
   | 'CEO'
+  | 'CEO_SECRETARIAT'
   | 'CHIEF'
   | 'DEPUTY_CHIEF'
   | 'DIRECTOR'
@@ -136,7 +137,7 @@ export interface ImplementationReport {
 
 export interface WorkflowNode {
   id: string;
-  level: 'BOARD_SECRETARIAT' | 'CEO' | 'CHIEF' | 'DEPUTY_CHIEF' | 'DIRECTOR' | 'REVIEW_CONFIRMATION' | 'CLOSED';
+  level: 'BOARD_SECRETARIAT' | 'CEO' | 'CEO_SECRETARIAT' | 'CHIEF' | 'DEPUTY_CHIEF' | 'DIRECTOR' | 'REVIEW_CONFIRMATION' | 'CLOSED';
   label: string;
   userId: string;
   userName: string;

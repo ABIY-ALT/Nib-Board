@@ -28,13 +28,16 @@ export const isDueSoon = (m: BODMatter) =>
 export function mattersForView(view: ViewId, matters: BODMatter[], user: User): BODMatter[] {
   switch (view) {
     case 'decisions':
-      return matters.filter((m) => m.matterType === 'Decision');
+      // Board Decisions acts as the Master Register across all matter types
+      return matters;
     case 'directives':
       return matters.filter((m) => m.matterType === 'Directive');
     case 'resolutions':
       return matters.filter((m) => m.matterType === 'Resolution');
     case 'incoming':
       return matters.filter((m) => isIncoming(m, user));
+    case 'archive':
+      return matters.filter((m) => m.status === 'Closed');
     case 'my-tasks':
       return matters.filter((m) => isOpen(m) && m.currentOwnerId === user.id);
     case 'pending-actions':
@@ -56,7 +59,8 @@ export function navCounts(matters: BODMatter[], user: User) {
     myTasks: matters.filter((m) => isOpen(m) && m.currentOwnerId === user.id).length,
     overdue: matters.filter(isOverdue).length,
     pendingActions: matters.filter((m) => awaitsAction(m, user)).length,
-    decisions: matters.filter((m) => m.matterType === 'Decision').length,
+    decisions: matters.length,
+    closed: matters.filter((m) => m.status === 'Closed').length,
   };
 }
 
@@ -90,7 +94,7 @@ export function daysOpen(m: BODMatter): number {
  */
 export const PIPELINE_STAGES = [
   { id: 'secretariat', label: 'Board Secretariat', match: (m: BODMatter) => m.currentOwnerRole === 'BOARD_SECRETARIAT' && m.status !== 'Closed' },
-  { id: 'ceo', label: 'CEO', match: (m: BODMatter) => m.currentOwnerRole === 'CEO' && m.status !== 'Closed' },
+  { id: 'ceo', label: 'CEO / CEO Secretariat', match: (m: BODMatter) => (m.currentOwnerRole === 'CEO' || m.currentOwnerRole === 'CEO_SECRETARIAT') && m.status !== 'Closed' },
   { id: 'chief', label: 'Chief / Executive', match: (m: BODMatter) => m.currentOwnerRole === 'CHIEF' && m.status !== 'Closed' },
   { id: 'deputy', label: 'Deputy Chief', match: (m: BODMatter) => m.currentOwnerRole === 'DEPUTY_CHIEF' && m.status !== 'Closed' },
   { id: 'director', label: 'Director', match: (m: BODMatter) => m.currentOwnerRole === 'DIRECTOR' && m.status !== 'Closed' },
@@ -167,6 +171,7 @@ export const ROLE_LABEL: Record<string, string> = {
   BOARD_SECRETARIAT: 'Board Secretariat',
   BOARD_MEMBER: 'Board Member',
   CEO: 'Chief Executive Officer',
+  CEO_SECRETARIAT: 'CEO Secretariat',
   CHIEF: 'Chief Officer',
   DEPUTY_CHIEF: 'Deputy Chief',
   DIRECTOR: 'Director',

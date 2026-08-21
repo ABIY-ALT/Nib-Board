@@ -55,11 +55,20 @@ export async function POST(req: Request, { params }: Params) {
       await lockMatter(tx, id);
       const matter = (await tx.matter.findUnique({ where: { id } }))!;
 
-      // Only the Director carrying the matter may report on it.
-      if (user.role !== 'DIRECTOR' || matter.responsibleDirectorId !== user.id) {
+      // Implementation can be reported by:
+      // 1. Designated Director
+      // 2. CEO who directly owns and executes the matter
+      // 3. Chief Officer who directly owns and executes the matter
+      const isOwner = matter.currentOwnerId === user.id;
+      const isDesignatedDirector = user.role === 'DIRECTOR' && (matter.responsibleDirectorId === user.id || isOwner);
+      const isCeoOwner = user.role === 'CEO' && isOwner;
+      const isChiefOwner = user.role === 'CHIEF' && isOwner;
+      const isAdmin = user.role === 'ADMIN';
+
+      if (!isDesignatedDirector && !isCeoOwner && !isChiefOwner && !isAdmin) {
         throw new HttpError(
           403,
-          'Only the designated Director (Final Operational Level) can submit the official Implementation Report.'
+          'You are not authorized to submit the Implementation Report for this matter.'
         );
       }
       if (matter.status === 'Closed') {
@@ -118,11 +127,22 @@ export async function POST(req: Request, { params }: Params) {
         },
       });
 
-      // The report goes to the senior-most person actually involved: the
-      // Deputy Chief or Chief who routed it, otherwise the CEO.
-      const reviewerId = matter.responsibleDeputyChiefId ?? matter.responsibleChiefId ?? null;
-      let reviewer = reviewerId ? await getUser(tx, reviewerId) : null;
-      if (!reviewer) reviewer = await firstUserWithRole(tx, 'CEO');
+      // Reviewer resolution:
+      // If CEO submitted directly: reviewer is Board Secretariat.
+      // If Chief submitted: reviewer is CEO.
+      // If Director submitted: reviewer is Deputy Chief, Chief, or CEO.
+      let reviewer = null;
+      if (user.role === 'CEO') {
+        reviewer = await firstUserWithRole(tx, 'BOARD_SECRETARIAT');
+      } else if (user.role === 'CHIEF') {
+        reviewer = await firstUserWithRole(tx, 'CEO') || await firstUserWithRole(tx, 'BOARD_SECRETARIAT');
+      } else {
+        const reviewerId = matter.responsibleDeputyChiefId ?? matter.responsibleChiefId ?? null;
+        reviewer = reviewerId ? await getUser(tx, reviewerId) : null;
+        if (!reviewer) reviewer = await firstUserWithRole(tx, 'CEO');
+      }
+      if (!reviewer) reviewer = await firstUserWithRole(tx, 'BOARD_SECRETARIAT') || await firstUserWithRole(tx, 'ADMIN');
+
       if (!reviewer) {
         throw new HttpError(500, 'No authorized reviewer is configured to confirm completion.');
       }

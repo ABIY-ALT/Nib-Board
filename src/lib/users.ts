@@ -15,6 +15,7 @@ export const ASSIGNABLE_ROLES: Role[] = [
   'BOARD_SECRETARIAT',
   'BOARD_MEMBER',
   'CEO',
+  'CEO_SECRETARIAT',
   'CHIEF',
   'DEPUTY_CHIEF',
   'DIRECTOR',

@@ -141,7 +141,7 @@ export async function putObject(bytes: Buffer, contentType: string): Promise<Sto
     'objects',
     sha256.slice(0, 2),
     sha256.slice(2, 4),
-    `${sha256}${extension}`
+    sha256
   );
 
   const target = objectPath(storageKey);
@@ -168,14 +168,24 @@ export async function putObject(bytes: Buffer, contentType: string): Promise<Sto
  * is constant-time out of habit, not necessity.
  */
 export async function getObject(storageKey: string, expectedSha256: string): Promise<Buffer> {
-  let bytes: Buffer;
+  let bytes: Buffer | null = null;
+  const primaryPath = objectPath(storageKey);
+
   try {
-    bytes = await readFile(/*turbopackIgnore: true*/ objectPath(storageKey));
+    bytes = await readFile(/*turbopackIgnore: true*/ primaryPath);
   } catch {
-    throw new HttpError(
-      410,
-      'The stored file is missing from the document archive. Report this to the administrator.'
-    );
+    // Fallback: try extensionless path if storageKey had an extension, or vice-versa
+    const root = storageRoot();
+    const cleanKey = storageKey.replace(/\.[^/.]+$/, '');
+    const altPath = path.resolve(/*turbopackIgnore: true*/ root, cleanKey);
+    try {
+      bytes = await readFile(/*turbopackIgnore: true*/ altPath);
+    } catch {
+      throw new HttpError(
+        410,
+        'The stored file is missing from the document archive. Report this to the administrator.'
+      );
+    }
   }
 
   const actual = Buffer.from(createHash('sha256').update(bytes).digest('hex'));

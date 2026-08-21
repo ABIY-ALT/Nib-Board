@@ -204,6 +204,8 @@ export function getRoleDisplayName(role: Role): string {
       return 'Board of Directors Member';
     case 'CEO':
       return 'Chief Executive Officer (CEO)';
+    case 'CEO_SECRETARIAT':
+      return 'CEO Secretariat / Executive Office';
     case 'CHIEF':
       return 'Chief Officer';
     case 'DEPUTY_CHIEF':
@@ -212,5 +214,7 @@ export function getRoleDisplayName(role: Role): string {
       return 'Director (Final Operational Level)';
     case 'ADMIN':
       return 'System Administrator';
+    default:
+      return role;
   }
 }

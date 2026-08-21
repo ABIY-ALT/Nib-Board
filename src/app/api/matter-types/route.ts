@@ -4,7 +4,7 @@ import { assertRole } from '@/lib/authz';
 import { handle, readJson, badRequest, conflict } from '@/lib/handler';
 import { listMatterTypes } from '@/lib/repo';
 import { prisma } from '@/lib/prisma';
-import { assertSameOrigin } from '@/lib/security';
+import { assertSameOrigin, recordAuthEvent, clientIp, userAgent } from '@/lib/security';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -41,6 +41,14 @@ export async function POST(req: Request) {
       where: { name: trimmed },
       create: { name: trimmed, sortOrder: 900 },
       update: { isActive: true },
+    });
+
+    await recordAuthEvent(prisma, {
+      event: 'MATTER_TYPE_CREATED',
+      userId: user.id,
+      ip: clientIp(req),
+      userAgent: userAgent(req),
+      detail: `Configured new Board matter type classification: "${trimmed}".`,
     });
 
     return { matterTypes: await listMatterTypes() };
@@ -84,6 +92,14 @@ export async function DELETE(req: Request) {
         where: { name: trimmed },
       });
     }
+
+    await recordAuthEvent(prisma, {
+      event: 'MATTER_TYPE_DELETED',
+      userId: user.id,
+      ip: clientIp(req),
+      userAgent: userAgent(req),
+      detail: `${inUseCount > 0 ? 'Retired' : 'Deleted'} Board matter type classification: "${trimmed}" (${inUseCount} historical matters).`,
+    });
 
     return {
       matterTypes: await listMatterTypes(),

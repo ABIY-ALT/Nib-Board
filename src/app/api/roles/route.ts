@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { ALL_PERMISSION_ACTIONS } from '@/lib/roles';
 import { listRoles } from '@/lib/roles.server';
 import { USER_ADMIN_ROLES } from '@/lib/users';
-import { assertSameOrigin } from '@/lib/security';
+import { assertSameOrigin, recordAuthEvent, clientIp, userAgent } from '@/lib/security';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -69,6 +69,14 @@ export async function POST(req: Request) {
       },
     });
 
+    await recordAuthEvent(prisma, {
+      event: 'ROLE_CONFIG_UPDATED',
+      userId: user.id,
+      ip: clientIp(req),
+      userAgent: userAgent(req),
+      detail: `Created new custom role: ${label} (${rawKey}) with ${permissions.length} permissions.`,
+    });
+
     return {
       ok: true,
       role: created,
@@ -120,6 +128,14 @@ export async function PATCH(req: Request) {
       data,
     });
 
+    await recordAuthEvent(prisma, {
+      event: 'ROLE_CONFIG_UPDATED',
+      userId: user.id,
+      ip: clientIp(req),
+      userAgent: userAgent(req),
+      detail: `Updated permissions for role: ${updated.label} (${roleKey}). Permissions: [${updated.permissions.join(', ')}].`,
+    });
+
     return {
       ok: true,
       role: updated,
@@ -163,13 +179,19 @@ export async function DELETE(req: Request) {
       where: { role: roleKey },
     });
     if (usersWithRole > 0) {
-      badRequest(
-        `Cannot delete role '${existing.label}' because ${usersWithRole} officer(s) currently hold this role. Reassign them first.`
-      );
+      conflict(`Cannot delete role '${roleKey}': ${usersWithRole} user(s) currently hold this role.`);
     }
 
     await prisma.roleDefinition.delete({
       where: { roleKey },
+    });
+
+    await recordAuthEvent(prisma, {
+      event: 'ROLE_CONFIG_UPDATED',
+      userId: user.id,
+      ip: clientIp(req),
+      userAgent: userAgent(req),
+      detail: `Deleted custom role: ${existing.label} (${roleKey}).`,
     });
 
     return {

@@ -122,6 +122,7 @@ const SignedIn: React.FC<SignedInProps> = ({
       case 'directives':
       case 'resolutions':
       case 'incoming':
+      case 'archive':
       case 'my-tasks':
       case 'pending-actions':
       case 'overdue':

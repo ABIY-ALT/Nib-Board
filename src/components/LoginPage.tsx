@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { AlertTriangle, CheckCircle, Lock, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Lock, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { BoardroomScene } from '@/components/BoardroomScene';
@@ -17,6 +17,7 @@ export const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -128,15 +129,29 @@ export const LoginPage: React.FC = () => {
               >
                 Password
               </label>
-              <input
-                id="login-password"
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
-                className="w-full h-10 rounded-lg bg-black/35 border border-nib-gold-400/30 px-3.5 text-[13px] text-white placeholder:text-nib-gold-100/30 focus:outline-none focus:border-nib-gold-400 focus:ring-2 focus:ring-nib-gold-500/20 transition"
-              />
+              <div className="relative">
+                <input
+                  id="login-password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  className="w-full h-10 rounded-lg bg-black/35 border border-nib-gold-400/30 pl-3.5 pr-10 text-[13px] text-white placeholder:text-nib-gold-100/30 focus:outline-none focus:border-nib-gold-400 focus:ring-2 focus:ring-nib-gold-500/20 transition"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-nib-gold-300 hover:text-white p-1 rounded-md hover:bg-white/15 transition"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-5 h-5 stroke-[2.8]" />
+                  ) : (
+                    <Eye className="w-5 h-5 stroke-[2.8]" />
+                  )}
+                </button>
+              </div>
             </div>
 
             <div className="flex items-center justify-start pt-1">
