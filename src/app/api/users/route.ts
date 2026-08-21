@@ -3,7 +3,7 @@ import { assertRole } from '@/lib/authz';
 import { handle, readJson, badRequest, conflict } from '@/lib/handler';
 import { prisma, transaction } from '@/lib/prisma';
 import { listUsers, listUsersForAdministration, generateId } from '@/lib/repo';
-import { assertSameOrigin, clientIp, recordAuthEvent, userAgent } from '@/lib/security';
+import { assertSameOrigin, clientIp, recordAuthEvent, userAgent, appOrigin } from '@/lib/security';
 import {
   ASSIGNABLE_ROLES,
   EMAIL_PATTERN,
@@ -97,7 +97,7 @@ export async function POST(req: Request) {
 
     // Derive the base URL from the incoming request so the setup link points
     // at the right host in both development and production.
-    const origin = new URL(req.url).origin;
+    const origin = appOrigin(req);
 
     return transaction(async (tx) => {
       const clash = await tx.user.findFirst({

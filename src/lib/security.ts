@@ -94,6 +94,22 @@ export function userAgent(req: Request): string | null {
   return req.headers.get('user-agent');
 }
 
+// ---------------------------------------------------------- app origin helper
+
+/**
+ * Returns the public-facing origin of the application.
+ *
+ * Behind a reverse proxy (IIS / Nginx) `req.url` resolves to something like
+ * `http://localhost:3009` — useless in emails sent to officers. When the
+ * `APP_URL` environment variable is set it takes precedence, giving a stable
+ * `https://nibboardtest.nibbank.com.et` regardless of internal routing.
+ */
+export function appOrigin(req: Request): string {
+  const configured = process.env.APP_URL?.replace(/\/+$/, '');
+  if (configured) return configured;
+  return new URL(req.url).origin;
+}
+
 // -------------------------------------------------------------------- CSRF
 
 /**

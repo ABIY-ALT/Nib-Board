@@ -3,7 +3,7 @@ import { assertRole } from '@/lib/authz';
 import { handle, readJson, badRequest, conflict } from '@/lib/handler';
 import { transaction } from '@/lib/prisma';
 import { revokeAllSessionsForUser } from '@/lib/session';
-import { assertSameOrigin, clientIp, recordAuthEvent, userAgent } from '@/lib/security';
+import { assertSameOrigin, clientIp, recordAuthEvent, userAgent, appOrigin } from '@/lib/security';
 import {
   ASSIGNABLE_ROLES,
   EMAIL_PATTERN,
@@ -174,7 +174,7 @@ export async function PATCH(req: Request, { params }: Params) {
         // Revoke any existing setup tokens and issue a new one.
         await revokeSetupTokensForUser(tx, id);
         const token = await createSetupToken(tx, id);
-        const origin = new URL(req.url).origin;
+        const origin = appOrigin(req);
         const setupUrl = `${origin}/setup-password?token=${token}`;
 
         // Send the password-reset email. If it fails, the entire

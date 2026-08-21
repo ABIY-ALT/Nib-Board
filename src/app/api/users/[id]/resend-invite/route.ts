@@ -2,7 +2,7 @@ import { requireUser, HttpError } from '@/lib/auth';
 import { assertRole } from '@/lib/authz';
 import { handle, readJson } from '@/lib/handler';
 import { transaction } from '@/lib/prisma';
-import { assertSameOrigin, clientIp, recordAuthEvent, userAgent } from '@/lib/security';
+import { assertSameOrigin, clientIp, recordAuthEvent, userAgent, appOrigin } from '@/lib/security';
 import { USER_ADMIN_ROLES } from '@/lib/users';
 import { createSetupToken } from '@/lib/setup-token';
 import { sendSetupEmail, sendPasswordResetEmail } from '@/lib/email';
@@ -31,7 +31,7 @@ export async function POST(req: Request, { params }: Params) {
 
     const { id } = await params;
 
-    const origin = new URL(req.url).origin;
+    const origin = appOrigin(req);
 
     return transaction(async (tx) => {
       const target = await tx.user.findUnique({
