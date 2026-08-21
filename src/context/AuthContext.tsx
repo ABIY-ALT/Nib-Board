@@ -20,6 +20,8 @@ interface AuthContextType {
   matterTypes: string[];
   isLoading: boolean;
   error: string | null;
+  serverDown: boolean;
+  retryConnection: () => void;
   refreshUsers: () => Promise<void>;
   refreshMatters: () => Promise<void>;
   refreshNotifications: () => Promise<void>;
@@ -49,6 +51,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [matterTypes, setMatterTypes] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [serverDown, setServerDown] = useState(false);
 
   const isAuthenticated = currentUser !== null;
 
@@ -96,25 +99,32 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Restore any existing session. The officer directory is no longer public,
   // so it is loaded with the rest of the data once the account is usable.
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch('/api/auth/session');
-        if (res.ok) {
-          const { user, mustChangePassword: mustChange } = await res.json();
-          if (user) {
-            setUser(user);
-            setMustChangePassword(Boolean(mustChange));
-            return;
-          }
+  const attemptSessionRestore = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch('/api/auth/session');
+      if (res.ok) {
+        const { user, mustChangePassword: mustChange } = await res.json();
+        if (user) {
+          setUser(user);
+          setMustChangePassword(Boolean(mustChange));
+          setServerDown(false);
+          return;
         }
-      } catch {
-        setError('Unable to reach the server.');
-      } finally {
-        setIsLoading(false);
       }
-    })();
+      // Any HTTP response means the server is up, even 401.
+      setServerDown(false);
+    } catch {
+      setServerDown(true);
+      setError('Unable to reach the server.');
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void attemptSessionRestore();
+  }, [attemptSessionRestore]);
 
   // Data is only loaded once the account is fully usable. While a forced
   // password change is outstanding the API refuses everything else anyway.
@@ -220,6 +230,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         matterTypes,
         isLoading,
         error,
+        serverDown,
+        retryConnection: attemptSessionRestore,
         refreshUsers,
         refreshMatters,
         refreshNotifications,

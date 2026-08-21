@@ -13,6 +13,7 @@ import { UsersView, SettingsView, AuditTrailView } from '@/components/admin/Admi
 import { MatterDetail } from '@/components/MatterDetail';
 import { ReportsView } from '@/components/ReportsView';
 import { LoginPage } from '@/components/LoginPage';
+import { ServerDownPage } from '@/components/ServerDownPage';
 import { ChangePasswordPage } from '@/components/ChangePasswordPage';
 import { RegisterMatterModal } from '@/components/RegisterMatterModal';
 import { RouteMatterModal } from '@/components/RouteMatterModal';
@@ -26,7 +27,7 @@ import { ViewId, canSeeView } from '@/lib/navigation';
 import { navCounts } from '@/lib/matters';
 
 const Workspace: React.FC = () => {
-  const { matters, isLoading, isAuthenticated, mustChangePassword } = useAuth();
+  const { matters, isLoading, isAuthenticated, mustChangePassword, serverDown, retryConnection } = useAuth();
 
   const [view, setView] = useState<ViewId>('dashboard');
   const [selected, setSelected] = useState<BODMatter | null>(null);
@@ -41,6 +42,11 @@ const Workspace: React.FC = () => {
   const [clarifyOpen, setClarifyOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [replyThread, setReplyThread] = useState<ClarificationThread | null>(null);
+
+  // Server unreachable — show the maintenance page before any auth gate.
+  if (serverDown) {
+    return <ServerDownPage onServerBack={() => retryConnection()} />;
+  }
 
   // Hooks must run on every render, so the auth gates come after them.
   if (!isAuthenticated) return <Suspense><LoginPage /></Suspense>;
