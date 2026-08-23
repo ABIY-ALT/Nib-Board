@@ -6,6 +6,7 @@ import { AlertTriangle, CheckCircle, Lock, ShieldCheck, Eye, EyeOff } from 'luci
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { BoardroomScene } from '@/components/BoardroomScene';
+import { EpmoBadge } from '@/components/EpmoBadge';
 
 /**
  * Institutional sign-in — Centered layout.
@@ -48,6 +49,11 @@ export const LoginPage: React.FC = () => {
         aria-hidden="true"
         className="absolute inset-0 bg-gradient-to-b from-nib-brown-900/90 via-nib-brown-900/80 to-nib-brown-900/95 backdrop-blur-[2px]"
       />
+
+      {/* Hanging EPMO Badge */}
+      <div className="absolute top-0 right-4 sm:right-10 md:right-16 z-20">
+        <EpmoBadge />
+      </div>
 
       {/* Centered Sign-in Card */}
       <div className="relative w-full max-w-md z-10 flex flex-col items-center">
