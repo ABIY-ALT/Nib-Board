@@ -1,3 +1,5 @@
+import path from 'path';
+import fs from 'fs';
 import nodemailer from 'nodemailer';
 
 // ------------------------------------------------------------- configuration
@@ -8,6 +10,21 @@ const EMAIL_USER = process.env.EMAIL_USER ?? '';
 const EMAIL_PASS = process.env.EMAIL_PASS ?? '';
 const EMAIL_FROM = process.env.EMAIL_FROM ?? `NIB BOARD <${EMAIL_USER}>`;
 const EMAIL_ALLOW_SELF_SIGNED = process.env.EMAIL_ALLOW_SELF_SIGNED === 'true';
+
+const LOGO_PATH = path.join(process.cwd(), 'public', 'nib-logo.png');
+
+function getEmailAttachments() {
+  if (fs.existsSync(LOGO_PATH)) {
+    return [
+      {
+        filename: 'nib-logo.png',
+        path: LOGO_PATH,
+        cid: 'nib-logo',
+      },
+    ];
+  }
+  return [];
+}
 
 /**
  * Whether the SMTP transport can be created. Checked before every send so the
@@ -158,6 +175,7 @@ export async function sendSetupEmail(
       to,
       subject: 'Set Your Password — NIB Board Governance Portal',
       html,
+      attachments: getEmailAttachments(),
     });
   } finally {
     transport.close();
@@ -206,6 +224,7 @@ export async function sendPasswordResetEmail(
       to,
       subject: 'Password Reset — NIB Board Governance Portal',
       html,
+      attachments: getEmailAttachments(),
     });
   } finally {
     transport.close();
@@ -256,6 +275,7 @@ export async function sendTestEmail(
       to,
       subject: 'NIB Board Governance — SMTP Connectivity Test',
       html,
+      attachments: getEmailAttachments(),
     });
   } finally {
     transport.close();
