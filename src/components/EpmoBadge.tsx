@@ -10,12 +10,16 @@ interface EpmoBadgeProps {
  * Hanging golden EPMO badge displayed on the sign-in / institutional pages.
  *
  * Recreates the golden hanging shield pennant with "SYSTEM BY EPMO".
+ *
+ * The pennant sways about its pin (`.epmo-swing` in globals.css): a pure CSS
+ * transform animation, so it costs no JavaScript, no timer and no re-render,
+ * and it stops for anyone who has asked for reduced motion.
  */
 export const EpmoBadge: React.FC<EpmoBadgeProps> = ({ className = '' }) => {
   return (
     <div
       aria-label="System by EPMO"
-      className={`flex flex-col items-center pointer-events-none select-none ${className}`}
+      className={`epmo-swing flex flex-col items-center pointer-events-none select-none ${className}`}
     >
       {/* Top Hanging Cord & Pin */}
       <div className="relative flex flex-col items-center">

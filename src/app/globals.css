@@ -195,8 +195,29 @@
     100% { background-position: 0 50%; }
   }
 
+  /* The EPMO pennant hangs from a pin, so it swings about that pin rather than
+     sliding sideways.
+
+     Deliberately transform-only: rotation is composited on the GPU, so no
+     frame costs layout or paint, and the whole thing is one declarative CSS
+     animation — no JavaScript, no timer, no React re-render per frame. The
+     browser suspends it in a background tab on its own. It is also confined to
+     the sign-in page, which unmounts the moment an officer signs in. */
+  .epmo-swing {
+    transform-origin: 50% 5px; /* the centre of the pin dot at the top */
+    animation: nib-epmo-swing 4.5s ease-in-out infinite;
+  }
+
+  @keyframes nib-epmo-swing {
+    0%, 100% { transform: rotate(-2.4deg); }
+    50% { transform: rotate(2.4deg); }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .skeleton { animation: none; }
+    /* `animation: none` rather than the near-zero duration below, which would
+       otherwise freeze the pennant at the first keyframe — permanently tilted. */
+    .epmo-swing { animation: none; }
     *, *::before, *::after {
       animation-duration: 0.01ms !important;
       transition-duration: 0.01ms !important;

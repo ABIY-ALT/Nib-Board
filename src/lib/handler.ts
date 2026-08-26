@@ -7,9 +7,13 @@ import { HttpError } from './auth';
  * this converts it; anything else is logged server-side and reported as a
  * generic 500, so internal detail never reaches the client.
  */
-export async function handle<T>(fn: () => Promise<T>): Promise<NextResponse> {
+export async function handle<T>(fn: () => Promise<T>): Promise<Response> {
   try {
     const result = await fn();
+    // A handler that builds its own response — a file download, say — has
+    // already decided its status and headers, and JSON-encoding it would
+    // destroy both. Everything else is serialized as JSON exactly as before.
+    if (result instanceof Response) return result;
     return NextResponse.json(result ?? { ok: true });
   } catch (err) {
     if (err instanceof HttpError) {

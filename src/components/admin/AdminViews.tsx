@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Database,
+  Download,
   FileSpreadsheet,
   Info,
   KeyRound,
@@ -685,58 +686,212 @@ const EVENT_PILL_STYLE: Record<string, string> = {
   LOGIN_FAILED: 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
 };
 
+/** Human labels for the event types the record actually contains. */
+const EVENT_LABEL: Record<string, string> = {
+  ROLE_CONFIG_UPDATED: 'Role & Permission Updates',
+  MATTER_TYPE_CREATED: 'Matter Type Created',
+  MATTER_TYPE_DELETED: 'Matter Type Deleted',
+  DEPARTMENT_CREATED: 'Directorate Created',
+  DEPARTMENT_UPDATED: 'Directorate Updated',
+  DEPARTMENT_DELETED: 'Directorate Deleted',
+  USER_CREATED: 'Officer Account Provisioned',
+  USER_UPDATED: 'Account Role / Info Updated',
+  USER_DEACTIVATED: 'Account Deactivated',
+  USER_REACTIVATED: 'Account Reactivated',
+  PASSWORD_RESET: 'Password Reset',
+  PASSWORD_CHANGED: 'Password Changed',
+  ACCOUNT_LOCKED: 'Account Locked',
+  ACCOUNT_UNLOCKED: 'Account Unlocked',
+  LOGIN_SUCCEEDED: 'Sign-in Succeeded',
+  LOGIN_FAILED: 'Sign-in Failed',
+  LOGIN_BLOCKED_LOCKED: 'Sign-in Blocked (Locked)',
+  LOGIN_BLOCKED_RATE_LIMIT: 'Sign-in Blocked (Rate Limit)',
+  LOGOUT: 'Sign-out',
+  TASK_REMINDER_SENT: 'Task Reminder Sent',
+  ANNOUNCEMENT_CREATED: 'Announcement Drafted',
+  ANNOUNCEMENT_UPDATED: 'Announcement Amended',
+  ANNOUNCEMENT_PUBLISHED: 'Announcement Published',
+  ANNOUNCEMENT_CANCELLED: 'Announcement Withdrawn',
+  ANNOUNCEMENT_DELETED: 'Announcement Deleted',
+  ANNOUNCEMENT_VIEWED: 'Announcement Opened',
+};
+
+const eventLabel = (event: string): string => EVENT_LABEL[event] ?? event.replace(/_/g, ' ');
+
+interface AuditPage {
+  events: SystemAuditEvent[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  eventTypes: Array<{ event: string; count: number }>;
+}
+
+interface LoadFailure {
+  status: number;
+  message: string;
+}
+
+/**
+ * Reads the server's own explanation of a failure.
+ *
+ * The generic "failed to retrieve records" this screen used to show is the
+ * least useful thing it could say: a refused session, a permission the role
+ * does not hold, and a database that is down all look identical, so nobody can
+ * tell whether the log is broken or simply not theirs to read. The endpoint
+ * already returns a specific message — this surfaces it.
+ */
+async function readFailure(res: Response): Promise<LoadFailure> {
+  let message = '';
+  try {
+    const body = await res.json();
+    if (body && typeof body.error === 'string') message = body.error;
+  } catch {
+    /* a non-JSON body tells us nothing; fall through to the status */
+  }
+
+  if (!message) {
+    message =
+      res.status === 401
+        ? 'Your session is no longer valid. Sign in again to read the audit log.'
+        : `The server rejected the request (HTTP ${res.status}).`;
+  }
+  return { status: res.status, message };
+}
+
 export const GovernanceAuditLogCard: React.FC = () => {
-  const [systemEvents, setSystemEvents] = useState<SystemAuditEvent[]>([]);
-  const [systemLoading, setSystemLoading] = useState(false);
-  const [systemFailed, setSystemFailed] = useState(false);
+  const [data, setData] = useState<AuditPage | null>(null);
+  const [systemLoading, setSystemLoading] = useState(true);
+  const [failure, setFailure] = useState<LoadFailure | null>(null);
   const [systemFilter, setSystemFilter] = useState('ALL');
+
+  // What the officer is typing, and the term actually sent. Searching the whole
+  // record on every keystroke would be one query per character.
+  const [searchInput, setSearchInput] = useState('');
   const [systemSearch, setSystemSearch] = useState('');
+
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
+  const [reloadToken, setReloadToken] = useState(0);
 
-  const loadSystemAudit = React.useCallback(async () => {
-    setSystemLoading(true);
-    setSystemFailed(false);
-    try {
-      const res = await fetch('/api/admin/audit-logs?limit=500');
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      setSystemEvents(data.events || []);
-    } catch {
-      setSystemFailed(true);
-      setSystemEvents([]);
-    } finally {
-      setSystemLoading(false);
-    }
-  }, []);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   useEffect(() => {
-    void loadSystemAudit();
-  }, [loadSystemAudit]);
+    const id = setTimeout(() => setSystemSearch(searchInput.trim()), 300);
+    return () => clearTimeout(id);
+  }, [searchInput]);
 
-  const filteredSystemEvents = useMemo(() => {
-    return systemEvents.filter((ev) => {
-      const matchType = systemFilter === 'ALL' || ev.event === systemFilter;
-      const q = systemSearch.trim().toLowerCase();
-      const matchSearch =
-        !q ||
-        ev.event.toLowerCase().includes(q) ||
-        (ev.detail && ev.detail.toLowerCase().includes(q)) ||
-        (ev.user?.name && ev.user.name.toLowerCase().includes(q)) ||
-        (ev.emailAttempted && ev.emailAttempted.toLowerCase().includes(q));
-      return matchType && matchSearch;
-    });
-  }, [systemEvents, systemFilter, systemSearch]);
+  /** The filter as the API reads it — shared by the table and the export. */
+  const query = useMemo(() => {
+    const params = new URLSearchParams();
+    if (systemFilter !== 'ALL') params.set('event', systemFilter);
+    if (systemSearch) params.set('q', systemSearch);
+    return params.toString();
+  }, [systemFilter, systemSearch]);
 
-  // Reset to page 1 on filter or search change
+  // A change of filter, search term or page size invalidates the page number:
+  // page 4 of the old result set is not page 4 of the new one.
   useEffect(() => {
     setPage(1);
   }, [systemFilter, systemSearch, pageSize]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredSystemEvents.length / pageSize));
-  const currentPage = Math.min(page, totalPages);
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const load = async () => {
+      setSystemLoading(true);
+      setFailure(null);
+      try {
+        const params = new URLSearchParams(query);
+        params.set('page', String(page));
+        params.set('pageSize', String(pageSize));
+
+        const res = await fetch(`/api/admin/audit-logs?${params.toString()}`, {
+          signal: controller.signal,
+        });
+        if (!res.ok) {
+          setFailure(await readFailure(res));
+          setData(null);
+          return;
+        }
+        setData((await res.json()) as AuditPage);
+      } catch (err) {
+        // An aborted request is this effect superseding itself, not a failure.
+        if ((err as Error).name === 'AbortError') return;
+        setFailure({
+          status: 0,
+          message:
+            'The server could not be reached. It may be restarting — check that the application is running, then try again.',
+        });
+        setData(null);
+      } finally {
+        if (!controller.signal.aborted) setSystemLoading(false);
+      }
+    };
+
+    void load();
+    return () => controller.abort();
+  }, [query, page, pageSize, reloadToken]);
+
+  const reload = React.useCallback(() => setReloadToken((t) => t + 1), []);
+
+  /**
+   * Downloads the filtered record as CSV.
+   *
+   * The server builds the file from the same predicate the table is showing and
+   * returns every matching row, not the page on screen — an export covering
+   * only the visible fifteen would be read as the whole log.
+   */
+  const exportCsv = async () => {
+    setExporting(true);
+    setExportError(null);
+    try {
+      const params = new URLSearchParams(query);
+      params.set('format', 'csv');
+
+      const res = await fetch(`/api/admin/audit-logs?${params.toString()}`);
+      if (!res.ok) {
+        const f = await readFailure(res);
+        setExportError(f.message);
+        return;
+      }
+
+      const disposition = res.headers.get('Content-Disposition') ?? '';
+      const named = /filename="([^"]+)"/.exec(disposition);
+      const filename =
+        named?.[1] ?? `nib-board-audit-log-${new Date().toISOString().slice(0, 10)}.csv`;
+
+      const blob = await res.blob();
+      const href = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = href;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(href);
+    } catch {
+      setExportError('The export could not be downloaded. Check the connection and try again.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const events = data?.events ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = data?.totalPages ?? 1;
+  const currentPage = data?.page ?? page;
   const startIdx = (currentPage - 1) * pageSize;
-  const paginatedEvents = filteredSystemEvents.slice(startIdx, startIdx + pageSize);
+  const isFiltered = systemFilter !== 'ALL' || systemSearch !== '';
+
+  // Every type the log holds, plus the one being filtered on even if this
+  // reload no longer returns it, so the dropdown cannot fall off its own value.
+  const eventOptions = useMemo(() => {
+    const known = (data?.eventTypes ?? []).map((t) => t.event);
+    if (systemFilter !== 'ALL' && !known.includes(systemFilter)) known.push(systemFilter);
+    return known.sort((a, b) => eventLabel(a).localeCompare(eventLabel(b)));
+  }, [data?.eventTypes, systemFilter]);
 
   return (
     <Card className="overflow-hidden flex flex-col">
@@ -747,8 +902,8 @@ export const GovernanceAuditLogCard: React.FC = () => {
         action={
           <div className="flex flex-wrap items-center gap-2">
             <input
-              value={systemSearch}
-              onChange={(e) => setSystemSearch(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search audit details or officer..."
               className={cn(inputClass, 'w-64 text-xs')}
             />
@@ -758,22 +913,34 @@ export const GovernanceAuditLogCard: React.FC = () => {
               className="bg-surface-2 border border-line rounded-lg p-1.5 text-xs text-ink font-medium"
             >
               <option value="ALL">All Event Types</option>
-              <option value="ROLE_CONFIG_UPDATED">Role & Permission Updates</option>
-              <option value="MATTER_TYPE_CREATED">Matter Type Created</option>
-              <option value="MATTER_TYPE_DELETED">Matter Type Deleted</option>
-              <option value="DEPARTMENT_CREATED">Directorate Created</option>
-              <option value="DEPARTMENT_UPDATED">Directorate Updated</option>
-              <option value="DEPARTMENT_DELETED">Directorate Deleted</option>
-              <option value="USER_CREATED">Officer Account Provisioned</option>
-              <option value="USER_UPDATED">Account Role / Info Updated</option>
-              <option value="USER_DEACTIVATED">Account Deactivated</option>
-              <option value="PASSWORD_RESET">Password Reset</option>
+              {eventOptions.map((ev) => (
+                <option key={ev} value={ev}>
+                  {eventLabel(ev)}
+                </option>
+              ))}
             </select>
+            <Button
+              size="sm"
+              variant="secondary"
+              loading={exporting}
+              disabled={total === 0}
+              onClick={exportCsv}
+              icon={<Download className="w-3.5 h-3.5" />}
+              title={
+                total === 0
+                  ? 'There are no events to export'
+                  : isFiltered
+                    ? `Export the ${total} filtered event(s) as CSV`
+                    : `Export all ${total} event(s) as CSV`
+              }
+            >
+              Export CSV
+            </Button>
             <Button
               size="sm"
               variant="ghost"
               loading={systemLoading}
-              onClick={loadSystemAudit}
+              onClick={reload}
               icon={<RefreshCw className="w-3.5 h-3.5" />}
               aria-label="Refresh Audit Log"
             />
@@ -781,18 +948,42 @@ export const GovernanceAuditLogCard: React.FC = () => {
         }
       />
 
-      {systemLoading ? (
+      {exportError && (
+        <div className="mx-4 mt-3 flex items-start gap-2 rounded-lg border border-st-late/25 bg-st-late-bg px-3 py-2 text-[12px] text-st-late">
+          <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+          <span className="flex-1">{exportError}</span>
+          <button
+            onClick={() => setExportError(null)}
+            className="text-st-late/70 hover:text-st-late"
+            aria-label="Dismiss export error"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {systemLoading && !data ? (
         <TableSkeleton rows={8} cols={4} />
-      ) : systemFailed ? (
+      ) : failure ? (
         <ErrorState
-          title="Unable to load System Audit Log"
-          message="Failed to retrieve institutional administration audit records."
-          onRetry={loadSystemAudit}
+          title={
+            failure.status === 403
+              ? 'You may not view the System Audit Log'
+              : failure.status === 401
+                ? 'Your session has expired'
+                : 'Unable to load System Audit Log'
+          }
+          message={failure.message}
+          onRetry={reload}
         />
-      ) : filteredSystemEvents.length === 0 ? (
+      ) : events.length === 0 ? (
         <EmptyState
-          title="No System Audit Events Found"
-          message="No administrative or governance configuration events match your filter."
+          title={isFiltered ? 'No Matching Audit Events' : 'No System Audit Events Recorded'}
+          message={
+            isFiltered
+              ? 'No administrative or governance configuration events match your filter. Clear the search or choose a different event type.'
+              : 'Administrative operations are recorded here as they happen. Nothing has been recorded yet.'
+          }
         />
       ) : (
         <>
@@ -803,12 +994,12 @@ export const GovernanceAuditLogCard: React.FC = () => {
                   <th className="py-3 px-4">Timestamp</th>
                   <th className="py-3 px-4">Audit Event Type</th>
                   <th className="py-3 px-4">Acting Officer / User</th>
-                  <th className="py-3 px-4">Action Detail & Scope</th>
+                  <th className="py-3 px-4">Action Detail &amp; Scope</th>
                   <th className="py-3 px-4">Source IP</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line text-xs">
-                {paginatedEvents.map((ev) => (
+                {events.map((ev) => (
                   <tr key={ev.id} className="hover:bg-surface-2/40 transition">
                     <td className="py-3 px-4 font-mono text-[11px] text-ink-3 whitespace-nowrap">
                       {formatDateTime(ev.occurredAt)}
@@ -853,11 +1044,11 @@ export const GovernanceAuditLogCard: React.FC = () => {
           <div className="p-3 border-t border-line bg-surface-2/40 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2 text-ink-3">
               <span>
-                Showing <strong className="text-ink font-semibold">{filteredSystemEvents.length > 0 ? startIdx + 1 : 0}</strong> to{' '}
-                <strong className="text-ink font-semibold">
-                  {Math.min(startIdx + pageSize, filteredSystemEvents.length)}
-                </strong>{' '}
-                of <strong className="text-ink font-semibold">{filteredSystemEvents.length}</strong> events
+                Showing{' '}
+                <strong className="text-ink font-semibold">{total > 0 ? startIdx + 1 : 0}</strong> to{' '}
+                <strong className="text-ink font-semibold">{startIdx + events.length}</strong> of{' '}
+                <strong className="text-ink font-semibold">{total}</strong> events
+                {isFiltered && ' (filtered)'}
               </span>
               <span className="text-line-strong">|</span>
               <div className="flex items-center gap-1">
@@ -880,7 +1071,7 @@ export const GovernanceAuditLogCard: React.FC = () => {
               <Button
                 size="sm"
                 variant="secondary"
-                disabled={currentPage <= 1}
+                disabled={currentPage <= 1 || systemLoading}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 icon={<ChevronLeft className="w-3.5 h-3.5" />}
               >
@@ -888,14 +1079,16 @@ export const GovernanceAuditLogCard: React.FC = () => {
               </Button>
 
               <div className="flex items-center gap-1 px-2 text-xs font-semibold text-ink">
-                <span>Page {currentPage} of {totalPages}</span>
+                <span>
+                  Page {currentPage} of {totalPages}
+                </span>
               </div>
 
               <Button
                 size="sm"
                 variant="secondary"
-                disabled={currentPage >= totalPages}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages || systemLoading}
+                onClick={() => setPage((p) => p + 1)}
               >
                 <span>Next</span>
                 <ChevronRight className="w-3.5 h-3.5 ml-1" />
@@ -907,7 +1100,6 @@ export const GovernanceAuditLogCard: React.FC = () => {
     </Card>
   );
 };
-
 /* ────────────────────────────────────────────────────── Audit Trail */
 
 const ACTION_TONE: Record<string, string> = {
