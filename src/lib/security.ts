@@ -29,7 +29,18 @@ export type AuthEvent =
   | 'MATTER_TYPE_DELETED'
   | 'DEPARTMENT_CREATED'
   | 'DEPARTMENT_UPDATED'
-  | 'DEPARTMENT_DELETED';
+  | 'DEPARTMENT_DELETED'
+  // Announcements and reminders. An announcement has no Board matter to hang
+  // an audit_logs row on, so its history lives in the same append-only record
+  // as the rest of the institution-wide administrative actions — which is also
+  // what the Governance Audit Log screen already reads.
+  | 'ANNOUNCEMENT_CREATED'
+  | 'ANNOUNCEMENT_UPDATED'
+  | 'ANNOUNCEMENT_PUBLISHED'
+  | 'ANNOUNCEMENT_CANCELLED'
+  | 'ANNOUNCEMENT_DELETED'
+  | 'ANNOUNCEMENT_VIEWED'
+  | 'TASK_REMINDER_SENT';
 
 export interface AuthEventInput {
   event: AuthEvent;

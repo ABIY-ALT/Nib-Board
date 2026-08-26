@@ -217,7 +217,10 @@ async function main() {
     });
 
     await prisma.notification.createMany({
-      data: INITIAL_NOTIFICATIONS.filter((n) => knownMatterIds.has(n.matterId)).map((n) => ({
+      data: INITIAL_NOTIFICATIONS.filter(
+        (n): n is typeof n & { matterId: string } =>
+          n.matterId !== undefined && knownMatterIds.has(n.matterId)
+      ).map((n) => ({
         id: n.id,
         userId: n.userId,
         matterId: n.matterId,

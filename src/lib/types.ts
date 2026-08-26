@@ -89,7 +89,12 @@ export interface AuditLogEntry {
     | 'Implementation Submitted'
     | 'Completion Reviewed'
     | 'Completion Confirmed'
-    | 'Matter Closed';
+    | 'Matter Closed'
+    // A reminder is an action taken on the matter, so it belongs on the
+    // matter's own trail beside every other action rather than in a record of
+    // its own. audit_logs.action has never been constrained, so no migration
+    // is needed to add one.
+    | 'Reminder Sent';
   previousOwner?: {
     id: string;
     name: string;
@@ -235,11 +240,29 @@ export interface BODMatter {
 export interface AppNotification {
   id: string;
   userId: string;
-  matterId: string;
-  matterTitle: string;
+  /**
+   * What the notification is about. Exactly one of these is set on a
+   * notification that can be opened: workflow events carry a matter,
+   * announcements carry an announcement.
+   */
+  matterId?: string;
+  matterTitle?: string;
+  announcementId?: string;
   title: string;
   message: string;
-  type: 'ASSIGNMENT' | 'FORWARD' | 'CLARIFICATION' | 'DEADLINE_APPROACHING' | 'OVERDUE' | 'IMPLEMENTATION_SUBMITTED' | 'COMPLETION_CONFIRMED' | 'STATUS_CHANGE';
+  type:
+    | 'ASSIGNMENT'
+    | 'FORWARD'
+    | 'CLARIFICATION'
+    | 'DEADLINE_APPROACHING'
+    | 'OVERDUE'
+    | 'IMPLEMENTATION_SUBMITTED'
+    | 'COMPLETION_CONFIRMED'
+    | 'STATUS_CHANGE'
+    | 'TASK_REMINDER'
+    | 'ANNOUNCEMENT';
+  /** Normal | Important | Urgent — inherited from the announcement, if any. */
+  priority: 'Normal' | 'Important' | 'Urgent';
   timestamp: string;
   isRead: boolean;
   actionUrl?: string;

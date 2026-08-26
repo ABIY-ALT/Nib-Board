@@ -7,9 +7,11 @@ import {
   FileCheck2,
   FileText,
   Gauge,
+  BellRing,
   Inbox,
   LayoutDashboard,
   ListChecks,
+  Megaphone,
   ScrollText,
   Settings,
   ShieldCheck,
@@ -18,6 +20,7 @@ import {
   Users,
   type LucideIcon,
 } from 'lucide-react';
+import { PermissionKey, PERMISSIONS, hasPermission } from './permissions';
 import { Role } from './types';
 
 export type ViewId =
@@ -31,6 +34,8 @@ export type ViewId =
   | 'pending-actions'
   | 'overdue'
   | 'escalated'
+  | 'announcements'
+  | 'task-reminders'
   | 'implementation'
   | 'overview'
   | 'sla'
@@ -48,9 +53,24 @@ export interface NavItem {
   title: string;
   description: string;
   /** Which counter from the derived nav counts to show as a badge. */
-  badge?: 'incoming' | 'myTasks' | 'overdue' | 'pendingActions' | 'decisions' | 'closed';
+  badge?:
+    | 'incoming'
+    | 'myTasks'
+    | 'overdue'
+    | 'pendingActions'
+    | 'decisions'
+    | 'closed'
+    | 'announcements'
+    | 'reminders';
   /** When set, only these roles see the item. The API is authoritative regardless. */
   roles?: Role[];
+  /**
+   * When set, the item is decided by permission rather than by role — for every
+   * role, administrators included. This is what makes a feature something an
+   * administrator can hand to any role from Governance Settings instead of
+   * something wired to one job title.
+   */
+  permission?: PermissionKey;
 }
 
 export interface NavGroup {
@@ -167,6 +187,31 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    label: 'Communications',
+    items: [
+      {
+        id: 'announcements',
+        label: 'Announcements',
+        icon: Megaphone,
+        badge: 'announcements',
+        title: 'Announcements & Notices',
+        description:
+          'General announcements, meeting notices, policy updates and urgent notices addressed to you.',
+        permission: PERMISSIONS.ANNOUNCEMENT_VIEW,
+      },
+      {
+        id: 'task-reminders',
+        label: 'Task Reminders',
+        icon: BellRing,
+        badge: 'reminders',
+        title: 'Task Reminders',
+        description:
+          'Board matters that are overdue, approaching their deadline, or have not been worked on — and who is holding them.',
+        permission: PERMISSIONS.TASK_REMINDER_VIEW,
+      },
+    ],
+  },
+  {
     label: 'Monitoring',
     items: [
       {
@@ -245,17 +290,28 @@ export function navItem(id: ViewId): NavItem | undefined {
   return ALL_NAV_ITEMS.find((i) => i.id === id);
 }
 
-export function visibleGroups(role: Role): NavGroup[] {
-  if (role === 'ADMIN') return NAV_GROUPS;
+export function visibleGroups(role: Role, permissions: readonly string[] = []): NavGroup[] {
   return NAV_GROUPS.map((g) => ({
     ...g,
-    items: g.items.filter((i) => !i.roles || i.roles.includes(role)),
+    items: g.items.filter((i) => canSeeView(role, i.id, permissions)),
   })).filter((g) => g.items.length > 0);
 }
 
-export function canSeeView(role: Role, id: ViewId): boolean {
-  if (role === 'ADMIN') return true;
+/**
+ * Whether a view is offered to this user.
+ *
+ * A permission-gated item is decided by the permission and nothing else — the
+ * administrator shortcut deliberately does not apply to it. An escape hatch
+ * there would mean the Roles & Permissions screen appears to govern the feature
+ * while one role quietly ignores it; ADMIN is granted these permissions in the
+ * role definitions instead, where it is visible and can be changed.
+ *
+ * Role-gated items keep their existing behaviour exactly.
+ */
+export function canSeeView(role: Role, id: ViewId, permissions: readonly string[] = []): boolean {
   const item = navItem(id);
   if (!item) return true;
+  if (item.permission) return hasPermission(permissions, item.permission);
+  if (role === 'ADMIN') return true;
   return !item.roles || item.roles.includes(role);
 }

@@ -66,6 +66,13 @@ model User {
   sessions                Session[]
   passwordSetupTokens     PasswordSetupToken[]
 
+  announcementsCreated   Announcement[]     @relation("AnnouncementCreatedBy")
+  announcementsPublished Announcement[]     @relation("AnnouncementPublishedBy")
+  announcementsCancelled Announcement[]     @relation("AnnouncementCancelledBy")
+  announcementReads      AnnouncementRead[]
+  remindersReceived      TaskReminder[]     @relation("TaskReminderRecipient")
+  remindersSent          TaskReminder[]     @relation("TaskReminderSentBy")
+
   @@map("users")
 }
 
@@ -151,6 +158,8 @@ model Matter {
   implementationReport ImplementationReport?
   auditLogs            AuditLog[]
   notifications        Notification[]
+  announcements        Announcement[]
+  taskReminders        TaskReminder[]
 
   @@index([currentOwnerId], map: "matters_current_owner_idx")
   @@index([responsibleDirectorId], map: "matters_director_idx")
@@ -300,18 +309,28 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+/// One notification model serves the whole application. A notification points
+/// at whatever it is about — a Board matter, an announcement, or neither — which
+/// is why both references are optional. Everything raised before announcements
+/// existed carries a matter, so no historical row changes meaning.
 model Notification {
-  id        String   @id
-  userId    String   @map("user_id")
-  matterId  String   @map("matter_id")
-  title     String
-  message   String
-  type      String
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  isRead    Boolean  @default(false) @map("is_read")
+  id             String   @id
+  userId         String   @map("user_id")
+  matterId       String?  @map("matter_id")
+  /// Set when the notification was raised by a published announcement.
+  announcementId String?  @map("announcement_id")
+  title          String
+  message        String
+  type           String
+  /// Normal | Important | Urgent. Inherited from the announcement that raised
+  /// it; workflow notifications keep the default.
+  priority       String   @default("Normal")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  isRead         Boolean  @default(false) @map("is_read")
 
-  user   User   @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  matter Matter @relation(fields: [matterId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user         User          @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  matter       Matter?       @relation(fields: [matterId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  announcement Announcement? @relation(fields: [announcementId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([userId, isRead], map: "notifications_user_idx")
   @@map("notifications")
@@ -384,16 +403,143 @@ model PasswordSetupToken {
 /// Dynamic department and directorate registry, enabling administrative governance
 /// and direct director assignment.
 model Department {
-  id           String    @id
-  name         String    @unique
-  code         String?   @unique
-  businessArea String    @map("business_area")
-  directorId   String?   @map("director_id")
-  director     User?     @relation("DepartmentDirector", fields: [directorId], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  isActive     Boolean   @default(true) @map("is_active")
-  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id           String   @id
+  name         String   @unique
+  code         String?  @unique
+  businessArea String   @map("business_area")
+  directorId   String?  @map("director_id")
+  director     User?    @relation("DepartmentDirector", fields: [directorId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@index([businessArea], map: "departments_business_area_idx")
   @@map("departments")
+}
+
+// --------------------------------------------- announcements & reminders
+
+/// Institutional communication, of which a meeting notice is one category.
+///
+/// Deliberately one model rather than a family of them: a meeting announcement
+/// and a policy notice differ only in which optional fields they fill in, so a
+/// separate meeting table would duplicate the targeting, publication,
+/// notification and audit machinery for no gain. Who may create, edit, publish
+/// or delete one is decided by permissions held by the author's role — never by
+/// the role itself — so any role an administrator grants the permission to can
+/// use the feature.
+model Announcement {
+  id       String @id
+  title    String
+  message  String
+  /// GENERAL | MEETING | TASK_REMINDER | NOTICE | BOARD_NOTICE | POLICY |
+  /// SYSTEM | URGENT | EVENT | OTHER. Mirrored by a CHECK constraint.
+  type     String
+  /// Normal | Important | Urgent.
+  priority String @default("Normal")
+  /// DRAFT | PUBLISHED | CANCELLED. Expiry is derived from expiresAt at read
+  /// time rather than stored, so it can never be stale.
+  status   String @default("DRAFT")
+
+  /// When the announcement becomes visible to its audience. Null means "as
+  /// soon as it is published".
+  publishAt DateTime? @map("publish_at") @db.Timestamptz(6)
+  /// After this the announcement drops out of the feed but is retained.
+  expiresAt DateTime? @map("expires_at") @db.Timestamptz(6)
+
+  /// The audience, expressed as the union of these five. A user is in it when
+  /// targetAll is set, or they are named, or their role, department or
+  /// business area is listed. An announcement with no audience at all reaches
+  /// nobody, so the API refuses to publish one.
+  targetAll           Boolean  @default(false) @map("target_all")
+  targetUserIds       String[] @default([]) @map("target_user_ids")
+  targetRoles         String[] @default([]) @map("target_roles")
+  targetDepartments   String[] @default([]) @map("target_departments")
+  targetBusinessAreas String[] @default([]) @map("target_business_areas")
+
+  /// Only meaningful when type is MEETING; the CHECK constraint keeps them
+  /// empty on every other type.
+  meetingDate  DateTime? @map("meeting_date") @db.Date
+  meetingTime  String?   @map("meeting_time")
+  location     String?
+  meetingLink  String?   @map("meeting_link")
+  agenda       String?
+  participants String[]  @default([])
+
+  /// Optional link to whatever the announcement is about.
+  relatedMatterId String? @map("related_matter_id")
+  reference       String?
+
+  /// One optional attachment, held in the same content-addressed store as
+  /// Board papers. Null on an announcement with no file; the CHECK constraint
+  /// keeps the five in step.
+  attachmentName String? @map("attachment_name")
+  attachmentType String? @map("attachment_type")
+  attachmentSize Int?    @map("attachment_size")
+  attachmentKey  String? @map("attachment_key")
+  attachmentSha  String? @map("attachment_sha256")
+
+  createdById   String    @map("created_by")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  publishedById String?   @map("published_by")
+  publishedAt   DateTime? @map("published_at") @db.Timestamptz(6)
+  cancelledById String?   @map("cancelled_by")
+  cancelledAt   DateTime? @map("cancelled_at") @db.Timestamptz(6)
+
+  createdBy     User    @relation("AnnouncementCreatedBy", fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  publishedBy   User?   @relation("AnnouncementPublishedBy", fields: [publishedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  cancelledBy   User?   @relation("AnnouncementCancelledBy", fields: [cancelledById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  relatedMatter Matter? @relation(fields: [relatedMatterId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  reads         AnnouncementRead[]
+  notifications Notification[]
+
+  @@index([status, publishAt(sort: Desc)], map: "announcements_status_idx")
+  @@index([type, meetingDate], map: "announcements_meeting_idx")
+  @@map("announcements")
+}
+
+/// Read receipts. One row per person per announcement, written the first time
+/// they open it — which is also what the "viewed" audit event is derived from,
+/// so opening the same notice twice does not fill the security log.
+model AnnouncementRead {
+  announcementId String   @map("announcement_id")
+  userId         String   @map("user_id")
+  readAt         DateTime @default(now()) @map("read_at") @db.Timestamptz(6)
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([announcementId, userId])
+  @@index([userId], map: "announcement_reads_user_idx")
+  @@map("announcement_reads")
+}
+
+/// A nudge sent to whoever holds a Board matter that has not moved.
+///
+/// Recorded rather than merely sent, for two reasons: the officer chasing the
+/// work needs to see that a reminder already went out and who sent it, and the
+/// send path refuses a second reminder to the same person about the same matter
+/// inside the cooldown window, so a pending queue cannot be turned into a
+/// mailbox flood.
+model TaskReminder {
+  id          String   @id
+  matterId    String   @map("matter_id")
+  recipientId String   @map("recipient_id")
+  sentById    String   @map("sent_by")
+  sentAt      DateTime @default(now()) @map("sent_at") @db.Timestamptz(6)
+  /// OVERDUE | DUE_SOON | NOT_STARTED | MANUAL — why it was sent, as judged
+  /// from the matter at the moment of sending.
+  reason      String
+  message     String?
+  emailSent   Boolean  @default(false) @map("email_sent")
+
+  matter    Matter @relation(fields: [matterId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  recipient User   @relation("TaskReminderRecipient", fields: [recipientId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sentBy    User   @relation("TaskReminderSentBy", fields: [sentById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([matterId, recipientId, sentAt(sort: Desc)], map: "task_reminders_matter_idx")
+  @@index([recipientId, sentAt(sort: Desc)], map: "task_reminders_recipient_idx")
+  @@map("task_reminders")
 }

@@ -14,10 +14,16 @@ export interface NavCounts {
   pendingActions: number;
   decisions: number;
   closed?: number;
+  /** Unread announcements addressed to this user. */
+  announcements?: number;
+  /** Matters in the reminder queue that are already past their deadline. */
+  reminders?: number;
 }
 
 interface SidebarProps {
   role: Role;
+  /** What the user's role is permitted to do; gates the permission-based items. */
+  permissions: readonly string[];
   active: ViewId;
   onNavigate: (id: ViewId) => void;
   counts: NavCounts;
@@ -36,6 +42,7 @@ interface SidebarProps {
  */
 export const Sidebar: React.FC<SidebarProps> = ({
   role,
+  permissions,
   active,
   onNavigate,
   counts,
@@ -44,7 +51,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   mobileOpen,
   onCloseMobile,
 }) => {
-  const groups = visibleGroups(role);
+  const groups = visibleGroups(role, permissions);
 
   const badgeFor = (item: NavItem): number | null => {
     if (!item.badge) return null;
@@ -56,7 +63,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     const Icon = item.icon;
     const on = active === item.id;
     const badge = badgeFor(item);
-    const urgent = item.badge === 'overdue';
+    const urgent = item.badge === 'overdue' || item.badge === 'reminders';
 
     return (
       <button

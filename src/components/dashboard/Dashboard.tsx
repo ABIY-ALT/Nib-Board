@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   AlertTriangle,
   ArrowRight,
@@ -27,6 +27,9 @@ import {
   cn,
 } from '@/components/ui/primitives';
 import { Column, DataTable } from '@/components/ui/DataTable';
+import { AnnouncementsPanel } from '@/components/dashboard/AnnouncementsPanel';
+import { AnnouncementDetail } from '@/components/communications/AnnouncementDetail';
+import { Announcement } from '@/lib/announcements';
 import { BODMatter } from '@/lib/types';
 import { ViewId } from '@/lib/navigation';
 import {
@@ -86,8 +89,12 @@ const KpiCard: React.FC<{
 /* ────────────────────────────────────────────────────────── Dashboard */
 
 export const Dashboard: React.FC<DashboardProps> = ({ onSelectMatter, onNavigate }) => {
-  const { matters, metrics, isLoading } = useAuth();
+  const { matters, metrics, isLoading, markAnnouncementRead } = useAuth();
   const user = useAuthenticatedUser();
+
+  // Opened from the announcements panel below. Reading one settles both the
+  // receipt and the matching notification, which the context handles.
+  const [openAnnouncement, setOpenAnnouncement] = useState<Announcement | null>(null);
 
   const open = useMemo(() => matters.filter(isOpen), [matters]);
   const overdue = useMemo(() => matters.filter(isOverdue), [matters]);
@@ -219,6 +226,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectMatter, onNavigate
           </div>
         </div>
       </Card>
+
+      {/* Announcements & reminders — drawn only for roles permitted to see them */}
+      <AnnouncementsPanel
+        onOpenAnnouncement={(a) => {
+          setOpenAnnouncement(a);
+          if (!a.isRead) void markAnnouncementRead(a.id);
+        }}
+        onSelectMatter={onSelectMatter}
+        onNavigate={onNavigate}
+      />
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3 mb-5">
@@ -402,6 +419,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectMatter, onNavigate
           }
         />
       </Card>
+
+      <AnnouncementDetail
+        announcement={openAnnouncement}
+        onClose={() => setOpenAnnouncement(null)}
+        onOpenMatter={(matterId) => {
+          const target = matters.find((m) => m.id === matterId);
+          if (target) {
+            setOpenAnnouncement(null);
+            onSelectMatter(target);
+          }
+        }}
+      />
     </div>
   );
 };

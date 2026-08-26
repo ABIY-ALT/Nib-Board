@@ -2,7 +2,12 @@ export interface PermissionAction {
   key: string;
   label: string;
   description: string;
-  category: 'Visibility' | 'Registration & Routing' | 'Execution & Reporting' | 'Administration';
+  category:
+    | 'Visibility'
+    | 'Registration & Routing'
+    | 'Execution & Reporting'
+    | 'Announcements & Reminders'
+    | 'Administration';
 }
 
 export const ALL_PERMISSION_ACTIONS: PermissionAction[] = [
@@ -79,6 +84,50 @@ export const ALL_PERMISSION_ACTIONS: PermissionAction[] = [
     category: 'Visibility',
   },
   {
+    key: 'TASK_REMINDER_VIEW',
+    label: 'View task reminders',
+    description:
+      'See pending, overdue and approaching Board matters within scope, with their owner and how long they have been waiting.',
+    category: 'Announcements & Reminders',
+  },
+  {
+    key: 'TASK_REMINDER_SEND',
+    label: 'Send task reminders',
+    description: 'Send a reminder to the officer holding a Board matter that has not moved.',
+    category: 'Announcements & Reminders',
+  },
+  {
+    key: 'ANNOUNCEMENT_VIEW',
+    label: 'View announcements',
+    description: 'Read announcements, notices and meeting invitations addressed to the user.',
+    category: 'Announcements & Reminders',
+  },
+  {
+    key: 'ANNOUNCEMENT_CREATE',
+    label: 'Create announcements',
+    description:
+      'Draft announcements of any type — general, meeting, notice, policy, event or urgent.',
+    category: 'Announcements & Reminders',
+  },
+  {
+    key: 'ANNOUNCEMENT_EDIT',
+    label: 'Edit announcements',
+    description: 'Amend an announcement before or after it has been published.',
+    category: 'Announcements & Reminders',
+  },
+  {
+    key: 'ANNOUNCEMENT_PUBLISH',
+    label: 'Publish announcements',
+    description: 'Release an announcement to its audience, notifying every recipient.',
+    category: 'Announcements & Reminders',
+  },
+  {
+    key: 'ANNOUNCEMENT_DELETE',
+    label: 'Withdraw announcements',
+    description: 'Cancel a published announcement or delete a draft.',
+    category: 'Announcements & Reminders',
+  },
+  {
     key: 'administer_users',
     label: 'Administer officer accounts',
     description: 'Provision users, assign roles, reset credentials, and manage access.',
@@ -114,6 +163,7 @@ export const DEFAULT_SYSTEM_ROLES: Omit<AppRole, 'id'>[] = [
       'attach_document',
       'view_analytics',
       'view_audit_trail',
+      'ANNOUNCEMENT_VIEW',
     ],
   },
   {
@@ -135,6 +185,13 @@ export const DEFAULT_SYSTEM_ROLES: Omit<AppRole, 'id'>[] = [
       'view_audit_trail',
       'administer_users',
       'configure_settings',
+      'TASK_REMINDER_VIEW',
+      'TASK_REMINDER_SEND',
+      'ANNOUNCEMENT_VIEW',
+      'ANNOUNCEMENT_CREATE',
+      'ANNOUNCEMENT_EDIT',
+      'ANNOUNCEMENT_PUBLISH',
+      'ANNOUNCEMENT_DELETE',
     ],
   },
   {
@@ -152,6 +209,12 @@ export const DEFAULT_SYSTEM_ROLES: Omit<AppRole, 'id'>[] = [
       'confirm_completion',
       'close_matter',
       'view_analytics',
+      'TASK_REMINDER_VIEW',
+      'TASK_REMINDER_SEND',
+      'ANNOUNCEMENT_VIEW',
+      'ANNOUNCEMENT_CREATE',
+      'ANNOUNCEMENT_EDIT',
+      'ANNOUNCEMENT_PUBLISH',
     ],
   },
   {
@@ -169,6 +232,12 @@ export const DEFAULT_SYSTEM_ROLES: Omit<AppRole, 'id'>[] = [
       'submit_report',
       'confirm_completion',
       'view_analytics',
+      'TASK_REMINDER_VIEW',
+      'TASK_REMINDER_SEND',
+      'ANNOUNCEMENT_VIEW',
+      'ANNOUNCEMENT_CREATE',
+      'ANNOUNCEMENT_EDIT',
+      'ANNOUNCEMENT_PUBLISH',
     ],
   },
   {
@@ -184,6 +253,9 @@ export const DEFAULT_SYSTEM_ROLES: Omit<AppRole, 'id'>[] = [
       'attach_document',
       'confirm_completion',
       'view_analytics',
+      'TASK_REMINDER_VIEW',
+      'TASK_REMINDER_SEND',
+      'ANNOUNCEMENT_VIEW',
     ],
   },
   {
@@ -198,6 +270,9 @@ export const DEFAULT_SYSTEM_ROLES: Omit<AppRole, 'id'>[] = [
       'reply_clarification',
       'attach_document',
       'confirm_completion',
+      'TASK_REMINDER_VIEW',
+      'TASK_REMINDER_SEND',
+      'ANNOUNCEMENT_VIEW',
     ],
   },
   {
@@ -211,6 +286,7 @@ export const DEFAULT_SYSTEM_ROLES: Omit<AppRole, 'id'>[] = [
       'reply_clarification',
       'attach_document',
       'submit_report',
+      'ANNOUNCEMENT_VIEW',
     ],
   },
   {
@@ -230,6 +306,13 @@ export const DEFAULT_SYSTEM_ROLES: Omit<AppRole, 'id'>[] = [
       'close_matter',
       'administer_users',
       'configure_settings',
+      'TASK_REMINDER_VIEW',
+      'TASK_REMINDER_SEND',
+      'ANNOUNCEMENT_VIEW',
+      'ANNOUNCEMENT_CREATE',
+      'ANNOUNCEMENT_EDIT',
+      'ANNOUNCEMENT_PUBLISH',
+      'ANNOUNCEMENT_DELETE',
     ],
   },
 ];

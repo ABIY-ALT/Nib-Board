@@ -447,20 +447,39 @@ export async function appendAudit(db: Db, e: AuditInput): Promise<void> {
 
 // ------------------------------------------------------------ notifications
 
+/**
+ * Raises one notification per recipient.
+ *
+ * A notification points at whatever it is about: a Board matter, an
+ * announcement, or neither. Callers raising a matter notification pass
+ * `matterId` exactly as before — the two new fields are optional so that every
+ * workflow path keeps behaving identically — and the announcement fan-out
+ * passes `announcementId` instead. Never both: the database refuses a row that
+ * claims two subjects, because "open the related item" would be ambiguous.
+ */
 export async function notify(
   db: Db,
   recipients: string[],
-  n: { matterId: string; title: string; message: string; type: string }
+  n: {
+    matterId?: string | null;
+    announcementId?: string | null;
+    title: string;
+    message: string;
+    type: string;
+    priority?: 'Normal' | 'Important' | 'Urgent';
+  }
 ): Promise<void> {
   if (recipients.length === 0) return;
   await db.notification.createMany({
     data: recipients.map((userId) => ({
       id: generateId('notif'),
       userId,
-      matterId: n.matterId,
+      matterId: n.matterId ?? null,
+      announcementId: n.announcementId ?? null,
       title: n.title,
       message: n.message,
       type: n.type,
+      priority: n.priority ?? 'Normal',
     })),
   });
 }

@@ -10,6 +10,8 @@ import { Dashboard } from '@/components/dashboard/Dashboard';
 import { MattersView, EscalatedView } from '@/components/governance/MattersView';
 import { OverviewView, SlaView } from '@/components/monitoring/MonitoringViews';
 import { UsersView, SettingsView, AuditTrailView } from '@/components/admin/AdminViews';
+import { AnnouncementsView } from '@/components/communications/AnnouncementsView';
+import { TaskRemindersView } from '@/components/communications/TaskRemindersView';
 import { MatterDetail } from '@/components/MatterDetail';
 import { ReportsView } from '@/components/ReportsView';
 import { LoginPage } from '@/components/LoginPage';
@@ -27,7 +29,14 @@ import { ViewId, canSeeView } from '@/lib/navigation';
 import { navCounts } from '@/lib/matters';
 
 const Workspace: React.FC = () => {
-  const { matters, isLoading, isAuthenticated, mustChangePassword, serverDown, retryConnection } = useAuth();
+  const {
+    matters,
+    isLoading,
+    isAuthenticated,
+    mustChangePassword,
+    serverDown,
+    retryConnection,
+  } = useAuth();
 
   const [view, setView] = useState<ViewId>('dashboard');
   const [selected, setSelected] = useState<BODMatter | null>(null);
@@ -104,7 +113,16 @@ const SignedIn: React.FC<SignedInProps> = ({
   collapsed, setCollapsed, mobileNav, setMobileNav, modals,
 }) => {
   const user = useAuthenticatedUser();
-  const counts = useMemo(() => navCounts(matters, user), [matters, user]);
+  const { permissions, announcements } = useAuth();
+
+  const unreadAnnouncements = useMemo(
+    () => announcements.filter((a) => !a.isRead).length,
+    [announcements]
+  );
+  const counts = useMemo(
+    () => navCounts(matters, user, { unreadAnnouncements }),
+    [matters, user, unreadAnnouncements]
+  );
 
   // Keep the selected matter in step with refreshed data after every action.
   const active = selected ? matters.find((m) => m.id === selected.id) ?? selected : null;
@@ -115,9 +133,17 @@ const SignedIn: React.FC<SignedInProps> = ({
   };
 
   const navigate = (v: ViewId) => {
-    // Mirrors the API: a view the role cannot use falls back to the dashboard.
-    setView(canSeeView(user.role, v) ? v : 'dashboard');
+    // Mirrors the API: a view the caller's role and permissions do not cover
+    // falls back to the dashboard. The endpoints behind each view authorize
+    // independently, so this is convenience rather than control.
+    setView(canSeeView(user.role, v, permissions) ? v : 'dashboard');
     if (v !== 'matter-detail') setSelected(null);
+  };
+
+  /** Opens a matter by id — used by the announcement and reminder views. */
+  const openMatterById = (matterId: string) => {
+    const target = matters.find((m) => m.id === matterId);
+    if (target) openMatter(target);
   };
 
   const body = () => {
@@ -142,6 +168,10 @@ const SignedIn: React.FC<SignedInProps> = ({
         );
       case 'escalated':
         return <EscalatedView onNavigateOverdue={() => navigate('overdue')} />;
+      case 'announcements':
+        return <AnnouncementsView onOpenMatter={openMatterById} />;
+      case 'task-reminders':
+        return <TaskRemindersView onOpenMatter={openMatterById} />;
       case 'overview':
         return <OverviewView />;
       case 'sla':
@@ -183,6 +213,7 @@ const SignedIn: React.FC<SignedInProps> = ({
     <div className="flex h-screen overflow-hidden bg-app">
       <Sidebar
         role={user.role}
+        permissions={permissions}
         active={view}
         onNavigate={navigate}
         counts={counts}

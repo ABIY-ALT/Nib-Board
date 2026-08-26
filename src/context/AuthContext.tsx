@@ -2,6 +2,8 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { User, BODMatter, AppNotification, DashboardMetrics } from '@/lib/types';
+import { Announcement } from '@/lib/announcements';
+import { PermissionKey, hasPermission } from '@/lib/permissions';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -18,6 +20,15 @@ interface AuthContextType {
   notifications: AppNotification[];
   metrics: DashboardMetrics | null;
   matterTypes: string[];
+  /**
+   * What the signed-in user's role is permitted to do, as the server resolved
+   * it. Used to decide what to draw — never to decide what is allowed: every
+   * endpoint re-checks the same permissions for itself.
+   */
+  permissions: string[];
+  can: (permission: PermissionKey) => boolean;
+  /** Live announcements addressed to this user. */
+  announcements: Announcement[];
   isLoading: boolean;
   error: string | null;
   serverDown: boolean;
@@ -27,6 +38,8 @@ interface AuthContextType {
   refreshNotifications: () => Promise<void>;
   refreshMetrics: () => Promise<void>;
   refreshMatterTypes: () => Promise<void>;
+  refreshAnnouncements: () => Promise<void>;
+  markAnnouncementRead: (id: string) => Promise<void>;
   markNotificationRead: (id: string) => Promise<void>;
   markAllNotificationsRead: () => Promise<void>;
   addMatterType: (name: string) => Promise<void>;
@@ -49,6 +62,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [matterTypes, setMatterTypes] = useState<string[]>([]);
+  const [permissions, setPermissions] = useState<string[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [serverDown, setServerDown] = useState(false);
@@ -85,6 +100,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (res.ok) setMatterTypes(await res.json());
   }, []);
 
+  /**
+   * The announcement feed.
+   *
+   * A user whose role does not carry ANNOUNCEMENT_VIEW is refused by the API,
+   * which is treated here as an empty feed rather than an error: not having the
+   * permission is a normal state, not a failure, and the section simply does
+   * not appear.
+   */
+  const refreshAnnouncements = useCallback(async () => {
+    try {
+      const res = await fetch('/api/announcements');
+      setAnnouncements(res.ok ? await res.json() : []);
+    } catch {
+      setAnnouncements([]);
+    }
+  }, []);
+
   const refreshAll = useCallback(async () => {
     setIsLoading(true);
     await Promise.all([
@@ -93,9 +125,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       refreshNotifications(),
       refreshMetrics(),
       refreshMatterTypes(),
+      refreshAnnouncements(),
     ]);
     setIsLoading(false);
-  }, [refreshUsers, refreshMatters, refreshNotifications, refreshMetrics, refreshMatterTypes]);
+  }, [
+    refreshUsers,
+    refreshMatters,
+    refreshNotifications,
+    refreshMetrics,
+    refreshMatterTypes,
+    refreshAnnouncements,
+  ]);
 
   // Restore any existing session. The officer directory is no longer public,
   // so it is loaded with the rest of the data once the account is usable.
@@ -104,10 +144,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setIsLoading(true);
       const res = await fetch('/api/auth/session');
       if (res.ok) {
-        const { user, mustChangePassword: mustChange } = await res.json();
+        const { user, mustChangePassword: mustChange, permissions: granted } = await res.json();
         if (user) {
           setUser(user);
           setMustChangePassword(Boolean(mustChange));
+          setPermissions(Array.isArray(granted) ? granted : []);
           setServerDown(false);
           return;
         }
@@ -144,6 +185,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
     setUser(payload.user);
     setMustChangePassword(Boolean(payload.mustChangePassword));
+    setPermissions(Array.isArray(payload.permissions) ? payload.permissions : []);
     return { success: true as const };
   };
 
@@ -169,7 +211,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setMatters([]);
       setNotifications([]);
       setMetrics(null);
+      setPermissions([]);
+      setAnnouncements([]);
     });
+  };
+
+  /**
+   * Records that this user has opened an announcement.
+   *
+   * The receipt and the bell entry are the same event to the reader, so the
+   * endpoint settles both and the feed and notifications are refreshed
+   * together.
+   */
+  const markAnnouncementRead = async (id: string) => {
+    const res = await fetch(`/api/announcements/${id}/read`, { method: 'POST' });
+    if (res.ok) {
+      await Promise.all([refreshAnnouncements(), refreshNotifications()]);
+    }
   };
 
   const markNotificationRead = async (id: string) => {
@@ -228,6 +286,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         notifications,
         metrics,
         matterTypes,
+        permissions,
+        can: (permission) => hasPermission(permissions, permission),
+        announcements,
         isLoading,
         error,
         serverDown,
@@ -237,6 +298,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         refreshNotifications,
         refreshMetrics,
         refreshMatterTypes,
+        refreshAnnouncements,
+        markAnnouncementRead,
         markNotificationRead,
         markAllNotificationsRead,
         addMatterType,

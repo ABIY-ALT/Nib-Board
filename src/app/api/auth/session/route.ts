@@ -20,17 +20,26 @@ import {
   MAX_FAILED_ATTEMPTS,
   LOCKOUT_MINUTES,
 } from '@/lib/security';
+import { getPermissions } from '@/lib/permissions.server';
 import { Role } from '@/lib/types';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/** Who am I? Returns null rather than 401 so the login page can render. */
+/**
+ * Who am I? Returns null rather than 401 so the login page can render.
+ *
+ * The permission set travels with the identity so the interface can leave out
+ * what the caller cannot do. It is a courtesy, not a control: every endpoint
+ * re-reads the permissions from the role definition on its own, so a client
+ * that keeps a stale list, or invents one, gets nowhere.
+ */
 export async function GET() {
   const principal = await getPrincipal();
   return NextResponse.json({
     user: principal?.user ?? null,
     mustChangePassword: principal?.mustChangePassword ?? false,
+    permissions: principal ? await getPermissions(principal.user) : [],
   });
 }
 
@@ -162,20 +171,23 @@ export async function POST(req: Request) {
       const store = await cookies();
       store.set(SESSION_COOKIE, token, { ...SESSION_COOKIE_OPTIONS, expires: expiresAt });
 
+      const signedIn = {
+        id: account.id,
+        name: account.name,
+        email: account.email,
+        role: account.role as Role,
+        title: account.title,
+        businessArea: account.businessArea,
+        department: account.department ?? undefined,
+        phone: account.phone ?? undefined,
+      };
+
       return {
         ok: true,
         body: {
-          user: {
-            id: account.id,
-            name: account.name,
-            email: account.email,
-            role: account.role as Role,
-            title: account.title,
-            businessArea: account.businessArea,
-            department: account.department ?? undefined,
-            phone: account.phone ?? undefined,
-          },
+          user: signedIn,
           mustChangePassword: passwordChangeEnforced(account.role, account.mustChangePassword),
+          permissions: await getPermissions(signedIn, tx),
         },
       };
     });

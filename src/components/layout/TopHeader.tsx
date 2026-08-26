@@ -234,7 +234,13 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
             ) : (
               <ul className="max-h-80 overflow-y-auto divide-y divide-line">
                 {notifications.slice(0, 15).map((n) => {
-                  const targetMatter = matters.find((m) => m.id === n.matterId);
+                  // A notification points at a matter or at an announcement.
+                  // Whichever it is, clicking it opens that thing — an entry
+                  // that goes nowhere is worse than no entry at all.
+                  const targetMatter = n.matterId
+                    ? matters.find((m) => m.id === n.matterId)
+                    : undefined;
+                  const opens = Boolean(targetMatter) || Boolean(n.announcementId);
                   return (
                     <li
                       key={n.id}
@@ -245,12 +251,20 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                         if (targetMatter) {
                           onSelectMatter(targetMatter);
                           setNotifOpen(false);
+                        } else if (n.announcementId) {
+                          onNavigate('announcements');
+                          setNotifOpen(false);
                         }
                       }}
                       className={cn(
-                        'px-3 py-2.5 transition-colors cursor-pointer group',
+                        'px-3 py-2.5 transition-colors cursor-pointer group border-l-2',
+                        n.priority === 'Urgent'
+                          ? 'border-st-late'
+                          : !n.isRead
+                            ? 'border-nib-gold-500'
+                            : 'border-transparent',
                         !n.isRead
-                          ? 'bg-nib-gold-100/40 dark:bg-nib-brown-900/30 border-l-2 border-nib-gold-500 hover:bg-nib-gold-100/70 dark:hover:bg-nib-brown-900/50'
+                          ? 'bg-nib-gold-100/40 dark:bg-nib-brown-900/30 hover:bg-nib-gold-100/70 dark:hover:bg-nib-brown-900/50'
                           : 'hover:bg-surface-2 opacity-85 hover:opacity-100'
                       )}
                     >
@@ -269,9 +283,9 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                             <span className="text-[10px] text-ink-3 tabular">
                               {new Date(n.timestamp).toLocaleString()}
                             </span>
-                            {targetMatter && (
+                            {opens && (
                               <span className="text-[10px] font-medium text-nib-gold-700 dark:text-nib-gold-400 group-hover:underline">
-                                View matter →
+                                {targetMatter ? 'View matter →' : 'View announcement →'}
                               </span>
                             )}
                           </div>

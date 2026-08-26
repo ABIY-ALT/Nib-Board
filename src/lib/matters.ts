@@ -53,7 +53,11 @@ export function mattersForView(view: ViewId, matters: BODMatter[], user: User): 
   }
 }
 
-export function navCounts(matters: BODMatter[], user: User) {
+export function navCounts(
+  matters: BODMatter[],
+  user: User,
+  extra: { unreadAnnouncements?: number } = {}
+) {
   return {
     incoming: matters.filter((m) => isIncoming(m, user)).length,
     myTasks: matters.filter((m) => isOpen(m) && m.currentOwnerId === user.id).length,
@@ -61,6 +65,10 @@ export function navCounts(matters: BODMatter[], user: User) {
     pendingActions: matters.filter((m) => awaitsAction(m, user)).length,
     decisions: matters.length,
     closed: matters.filter((m) => m.status === 'Closed').length,
+    announcements: extra.unreadAnnouncements ?? 0,
+    // The reminder badge counts what is actually late, not the whole queue:
+    // a badge that is never zero stops being read.
+    reminders: matters.filter(isOverdue).length,
   };
 }
 
