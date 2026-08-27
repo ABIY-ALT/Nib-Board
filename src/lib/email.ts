@@ -131,6 +131,41 @@ function ctaButton(label: string, url: string): string {
 </table>`;
 }
 
+/**
+ * Sends an email with automatic retry when hitting transient SMTP rate limits (e.g. 421 4.4.2).
+ */
+async function sendMailWithRetry(
+  mailOptions: nodemailer.SendMailOptions,
+  maxRetries = 2
+): Promise<void> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const transport = createTransport();
+    try {
+      await transport.sendMail(mailOptions);
+      return;
+    } catch (err: unknown) {
+      const errorObj = err as { responseCode?: number; code?: string; message?: string };
+      const isRateLimit =
+        errorObj?.responseCode === 421 ||
+        errorObj?.code === 'EENVELOPE' ||
+        (typeof errorObj?.message === 'string' &&
+          (errorObj.message.includes('421') || errorObj.message.toLowerCase().includes('rate limit')));
+
+      if (isRateLimit && attempt < maxRetries) {
+        const delayMs = (attempt + 1) * 1500;
+        console.warn(
+          `[email] Throttled by SMTP server (421). Retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxRetries})...`
+        );
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        continue;
+      }
+      throw err;
+    } finally {
+      transport.close();
+    }
+  }
+}
+
 // ---------------------------------------------------------- email functions
 
 /**
@@ -168,18 +203,13 @@ export async function sendSetupEmail(
     ${ctaButton('Set Your Password', setupUrl)}
   `);
 
-  const transport = createTransport();
-  try {
-    await transport.sendMail({
-      from: EMAIL_FROM,
-      to,
-      subject: 'Set Your Password — NIB Board Governance Portal',
-      html,
-      attachments: getEmailAttachments(),
-    });
-  } finally {
-    transport.close();
-  }
+  await sendMailWithRetry({
+    from: EMAIL_FROM,
+    to,
+    subject: 'Set Your Password — NIB Board Governance Portal',
+    html,
+    attachments: getEmailAttachments(),
+  });
 }
 
 /**
@@ -217,18 +247,13 @@ export async function sendPasswordResetEmail(
     ${ctaButton('Reset Your Password', setupUrl)}
   `);
 
-  const transport = createTransport();
-  try {
-    await transport.sendMail({
-      from: EMAIL_FROM,
-      to,
-      subject: 'Password Reset — NIB Board Governance Portal',
-      html,
-      attachments: getEmailAttachments(),
-    });
-  } finally {
-    transport.close();
-  }
+  await sendMailWithRetry({
+    from: EMAIL_FROM,
+    to,
+    subject: 'Password Reset — NIB Board Governance Portal',
+    html,
+    attachments: getEmailAttachments(),
+  });
 }
 
 /**
@@ -267,19 +292,18 @@ export async function sendTestEmail(
 
   const transport = createTransport();
   try {
-    // Verify connection first
     await transport.verify();
-    // Send test email
-    await transport.sendMail({
-      from: EMAIL_FROM,
-      to,
-      subject: 'NIB Board Governance — SMTP Connectivity Test',
-      html,
-      attachments: getEmailAttachments(),
-    });
   } finally {
     transport.close();
   }
+
+  await sendMailWithRetry({
+    from: EMAIL_FROM,
+    to,
+    subject: 'NIB Board Governance — SMTP Connectivity Test',
+    html,
+    attachments: getEmailAttachments(),
+  });
 }
 
 // ------------------------------------------------------------------ helpers
@@ -364,18 +388,13 @@ export async function sendAnnouncementEmail(
     ${openUrl ? ctaButton('Open in the Portal', openUrl) : ''}
   `);
 
-  const transport = createTransport();
-  try {
-    await transport.sendMail({
-      from: EMAIL_FROM,
-      to,
-      subject: `${urgent ? '[URGENT] ' : ''}${a.typeLabel} — ${a.title}`,
-      html,
-      attachments: getEmailAttachments(),
-    });
-  } finally {
-    transport.close();
-  }
+  await sendMailWithRetry({
+    from: EMAIL_FROM,
+    to,
+    subject: `${urgent ? '[URGENT] ' : ''}${a.typeLabel} — ${a.title}`,
+    html,
+    attachments: getEmailAttachments(),
+  });
 }
 
 /**
@@ -437,18 +456,13 @@ export async function sendTaskReminderEmail(
     ${openUrl ? ctaButton('Open the Matter', openUrl) : ''}
   `);
 
-  const transport = createTransport();
-  try {
-    await transport.sendMail({
-      from: EMAIL_FROM,
-      to,
-      subject: `${r.isOverdue ? '[OVERDUE] ' : 'Reminder: '}${r.matterId} — ${r.title}`,
-      html,
-      attachments: getEmailAttachments(),
-    });
-  } finally {
-    transport.close();
-  }
+  await sendMailWithRetry({
+    from: EMAIL_FROM,
+    to,
+    subject: `${r.isOverdue ? '[OVERDUE] ' : 'Reminder: '}${r.matterId} — ${r.title}`,
+    html,
+    attachments: getEmailAttachments(),
+  });
 }
 
 /**

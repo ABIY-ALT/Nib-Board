@@ -631,35 +631,41 @@ export async function dispatchAnnouncementEmails(
   const origin = appOrigin(req);
   const label = ANNOUNCEMENT_TYPE_LABEL[row.type as AnnouncementType] ?? 'Announcement';
 
-  const results = await Promise.all(
-    recipients.map((r) =>
-      sendBestEffort(() =>
-        sendAnnouncementEmail(
-          r.email,
-          r.name,
-          {
-            title: row.title,
-            message: row.message,
-            typeLabel: label,
-            priority: row.priority,
-            senderName: sender.name,
-            senderTitle: sender.title,
-            meeting:
-              row.type === 'MEETING'
-                ? {
-                    date: row.meetingDate ? row.meetingDate.toISOString().slice(0, 10) : '',
-                    time: row.meetingTime ?? '',
-                    location: row.location ?? '',
-                    link: row.meetingLink ?? '',
-                    agenda: row.agenda ?? '',
-                  }
-                : undefined,
-          },
-          origin
-        )
+  const results: boolean[] = [];
+  for (let i = 0; i < recipients.length; i++) {
+    const r = recipients[i];
+    const ok = await sendBestEffort(() =>
+      sendAnnouncementEmail(
+        r.email,
+        r.name,
+        {
+          title: row.title,
+          message: row.message,
+          typeLabel: label,
+          priority: row.priority,
+          senderName: sender.name,
+          senderTitle: sender.title,
+          meeting:
+            row.type === 'MEETING'
+              ? {
+                  date: row.meetingDate ? row.meetingDate.toISOString().slice(0, 10) : '',
+                  time: row.meetingTime ?? '',
+                  location: row.location ?? '',
+                  link: row.meetingLink ?? '',
+                  agenda: row.agenda ?? '',
+                }
+              : undefined,
+        },
+        origin
       )
-    )
-  );
+    );
+    results.push(ok);
+
+    // Throttle slightly between sends to respect SMTP submission rate limits (e.g. Exchange / Office 365)
+    if (i < recipients.length - 1) {
+      await new Promise((resolve) => setTimeout(resolve, 600));
+    }
+  }
 
   return results.filter(Boolean).length;
 }
