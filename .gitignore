@@ -11,3 +11,7 @@ next-env.d.ts
 *.tsbuildinfo
 
 /src/generated/prisma
+
+# Security assessments describe exploitable weaknesses and this repository is
+# public. They are shared with the bank's security team directly, never here.
+/docs/SECURITY_*.md

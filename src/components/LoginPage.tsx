@@ -70,7 +70,6 @@ export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [remember, setRemember] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -216,20 +215,6 @@ export const LoginPage: React.FC = () => {
                   )}
                 </button>
               </div>
-            </div>
-
-            <div className="flex items-center justify-start pt-1">
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={remember}
-                  onChange={(e) => setRemember(e.target.checked)}
-                  className="w-3.5 h-3.5 rounded border-nib-brown-900/25 bg-white text-nib-gold-500 focus:ring-nib-gold-500/30 dark:border-nib-gold-400/40 dark:bg-black/30"
-                />
-                <span className="text-[12px] text-nib-brown-700 dark:text-nib-gold-100/75">
-                  Remember this device
-                </span>
-              </label>
             </div>
 
             <button
