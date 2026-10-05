@@ -10,6 +10,26 @@ import { assertSameOrigin, recordAuthEvent, clientIp, userAgent } from '@/lib/se
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+const KNOWN_PERMISSIONS = new Set(ALL_PERMISSION_ACTIONS.map((a) => a.key));
+
+/**
+ * A submitted permission list, refused unless every entry is a permission the
+ * system defines. Keys a role already holds are tolerated, so a definition
+ * carrying a since-retired key can still be saved from the matrix, which sends
+ * the whole list back. Anything else used to be stored verbatim — or, for a
+ * non-string, fail as a 500.
+ */
+function parsePermissions(value: unknown, alreadyHeld: readonly string[] = []): string[] | undefined {
+  if (value === undefined) return undefined;
+  if (
+    !Array.isArray(value) ||
+    !value.every((p) => typeof p === 'string' && (KNOWN_PERMISSIONS.has(p) || alreadyHeld.includes(p)))
+  ) {
+    badRequest('permissions must be a list of permission keys defined by the system.');
+  }
+  return [...new Set(value as string[])];
+}
+
 export async function GET() {
   return handle(async () => {
     await requireUser();
@@ -45,7 +65,7 @@ export async function POST(req: Request) {
     const rawKey = (body.roleKey || '').trim().toUpperCase().replace(/[^A-Z0-9_]/g, '_');
     const label = (body.label || '').trim();
     const description = (body.description || '').trim();
-    const permissions = Array.isArray(body.permissions) ? body.permissions : [];
+    const permissions = parsePermissions(body.permissions) ?? [];
 
     if (!rawKey || !label) {
       badRequest('Role code and display label are required.');
@@ -121,7 +141,8 @@ export async function PATCH(req: Request) {
     const data: Record<string, unknown> = {};
     if (body.label !== undefined) data.label = body.label.trim();
     if (body.description !== undefined) data.description = body.description.trim();
-    if (Array.isArray(body.permissions)) data.permissions = body.permissions;
+    const permissions = parsePermissions(body.permissions, existing!.permissions);
+    if (permissions) data.permissions = permissions;
 
     const updated = await prisma.roleDefinition.update({
       where: { roleKey },

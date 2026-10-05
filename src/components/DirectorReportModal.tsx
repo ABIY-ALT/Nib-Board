@@ -113,7 +113,7 @@ export const DirectorReportModal: React.FC<DirectorReportModalProps> = ({
 
   return (
     <div className={modalOverlayClass}>
-      <div className="bg-surface rounded-[--radius-card] shadow-overlay border border-line w-full max-w-3xl overflow-hidden my-6">
+      <div className="bg-surface rounded-(--radius-card) shadow-overlay border border-line w-full max-w-3xl overflow-hidden my-6">
         
         {/* Modal Header */}
         <div className="bg-nib-brown-800 text-nib-gold-100 px-6 py-4 flex items-center justify-between border-b border-nib-brown-700">
@@ -139,7 +139,7 @@ export const DirectorReportModal: React.FC<DirectorReportModalProps> = ({
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs max-h-[82vh] overflow-y-auto">
           
-          <div className="p-3 bg-nib-gold-100 rounded-[--radius-card] border border-nib-gold-200 text-nib-brown-800 dark:text-nib-gold-200">
+          <div className="p-3 bg-nib-gold-100 rounded-(--radius-card) border border-nib-gold-200 text-nib-brown-800 dark:text-nib-gold-200">
             <p className="font-semibold text-xs">
               MANDATORY GOVERNANCE QUESTION:
             </p>
@@ -292,7 +292,7 @@ export const DirectorReportModal: React.FC<DirectorReportModalProps> = ({
           </div>
 
           {/* Evidence File Attachment */}
-          <div className="p-3 bg-surface-2 rounded-[--radius-card] border border-line">
+          <div className="p-3 bg-surface-2 rounded-(--radius-card) border border-line">
             <div className="flex items-center gap-2 mb-2">
               <Upload className="w-3.5 h-3.5 text-nib-gold-600" />
               <div>

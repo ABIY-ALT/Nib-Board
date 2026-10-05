@@ -226,7 +226,7 @@ export const MatterDetail: React.FC<MatterDetailProps> = ({
           )}
 
           {myThread && (
-            <div className="mt-3 flex items-start gap-2.5 bg-st-wait-bg border border-st-wait/25 rounded-[--radius-control] px-3 py-2.5">
+            <div className="mt-3 flex items-start gap-2.5 bg-st-wait-bg border border-st-wait/25 rounded-(--radius-control) px-3 py-2.5">
               <MessageSquare className="w-4 h-4 text-st-wait shrink-0 mt-0.5" />
               <div className="min-w-0 flex-1">
                 <p className="text-[12px] font-semibold text-ink">

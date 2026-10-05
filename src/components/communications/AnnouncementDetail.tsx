@@ -41,7 +41,7 @@ export const AnnouncementDetail: React.FC<Props> = ({
 
   return (
     <div className={modalOverlayClass}>
-      <div className="bg-surface rounded-[--radius-card] shadow-overlay border border-line w-full max-w-2xl overflow-hidden">
+      <div className="bg-surface rounded-(--radius-card) shadow-overlay border border-line w-full max-w-2xl overflow-hidden">
         <div
           className={cn(
             'px-5 py-3.5 flex items-start justify-between gap-3 border-b',
@@ -55,7 +55,7 @@ export const AnnouncementDetail: React.FC<Props> = ({
               className={cn(
                 'w-8 h-8 rounded-lg flex items-center justify-center shrink-0',
                 a.priority === 'Urgent'
-                  ? 'bg-st-late text-white'
+                  ? 'bg-st-late text-on-late'
                   : 'bg-nib-gold-100 text-nib-brown-700 dark:bg-nib-brown-700/30 dark:text-nib-gold-200'
               )}
             >
@@ -87,7 +87,7 @@ export const AnnouncementDetail: React.FC<Props> = ({
           {a.attachment && (
             <a
               href={`/api/announcements/${a.id}/attachment`}
-              className="flex items-center gap-3 rounded-[--radius-control] border border-line-strong bg-surface-2 px-3 py-2.5 hover:border-nib-gold-500 transition-colors"
+              className="flex items-center gap-3 rounded-(--radius-control) border border-line-strong bg-surface-2 px-3 py-2.5 hover:border-nib-gold-500 transition-colors"
             >
               <span className="w-9 h-9 rounded-md bg-surface-3 text-ink-3 flex items-center justify-center shrink-0">
                 <Paperclip className="w-4 h-4" />
@@ -105,7 +105,7 @@ export const AnnouncementDetail: React.FC<Props> = ({
           )}
 
           {a.relatedMatterId && (
-            <div className="rounded-[--radius-control] border border-line bg-surface-2 px-3 py-2.5">
+            <div className="rounded-(--radius-control) border border-line bg-surface-2 px-3 py-2.5">
               <p className="text-[11px] text-ink-3 mb-0.5">Related Board matter</p>
               <div className="flex items-center justify-between gap-2">
                 <p className="text-[12px] text-ink truncate">

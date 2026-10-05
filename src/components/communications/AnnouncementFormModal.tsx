@@ -311,7 +311,7 @@ export const AnnouncementFormModal: React.FC<Props> = ({ isOpen, onClose, editin
 
   return (
     <div className={modalOverlayClass}>
-      <div className="bg-surface rounded-[--radius-card] shadow-overlay border border-line w-full max-w-3xl overflow-hidden">
+      <div className="bg-surface rounded-(--radius-card) shadow-overlay border border-line w-full max-w-3xl overflow-hidden">
         <div className="bg-nib-brown-800 text-nib-gold-100 px-5 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2.5 min-w-0">
             <span className="w-8 h-8 rounded-lg bg-nib-gold-500 text-nib-brown-900 flex items-center justify-center shrink-0">
@@ -339,7 +339,7 @@ export const AnnouncementFormModal: React.FC<Props> = ({ isOpen, onClose, editin
 
         <div className="max-h-[70vh] overflow-y-auto p-5 space-y-4">
           {error && (
-            <div className="flex items-start gap-2 rounded-[--radius-control] border border-st-late/30 bg-st-late-bg px-3 py-2">
+            <div className="flex items-start gap-2 rounded-(--radius-control) border border-st-late/30 bg-st-late-bg px-3 py-2">
               <AlertCircle className="w-4 h-4 text-st-late shrink-0 mt-0.5" />
               <p className="text-[12px] text-st-late">{error}</p>
             </div>
@@ -455,7 +455,7 @@ export const AnnouncementFormModal: React.FC<Props> = ({ isOpen, onClose, editin
 
           {/* Meeting details — one announcement type, not a separate feature. */}
           {type === 'MEETING' && (
-            <div className="rounded-[--radius-card] border border-line bg-surface-2 p-3 space-y-3">
+            <div className="rounded-(--radius-card) border border-line bg-surface-2 p-3 space-y-3">
               <h4 className="text-[12px] font-bold uppercase tracking-wide text-ink-3">
                 Meeting details
               </h4>
@@ -528,7 +528,7 @@ export const AnnouncementFormModal: React.FC<Props> = ({ isOpen, onClose, editin
           )}
 
           {/* Audience */}
-          <div className="rounded-[--radius-card] border border-line p-3 space-y-3">
+          <div className="rounded-(--radius-card) border border-line p-3 space-y-3">
             <div className="flex items-center gap-1.5">
               <Users className="w-3.5 h-3.5 text-nib-gold-600" />
               <h4 className="text-[12px] font-bold uppercase tracking-wide text-ink-3">

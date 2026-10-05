@@ -91,7 +91,7 @@ export const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({
 
   return (
     <div className={modalOverlayClass}>
-      <div className="bg-surface rounded-[--radius-card] shadow-overlay border border-line w-full max-w-md overflow-hidden">
+      <div className="bg-surface rounded-(--radius-card) shadow-overlay border border-line w-full max-w-md overflow-hidden">
         <div className="bg-nib-brown-800 text-nib-gold-100 px-6 py-4 flex items-center justify-between border-b border-nib-brown-700">
           <div className="flex items-center space-x-2.5">
             <div className="w-8 h-8 rounded-lg bg-nib-gold-500 text-nib-brown-900 flex items-center justify-center shadow-card">

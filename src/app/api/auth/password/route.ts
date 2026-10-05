@@ -1,7 +1,12 @@
 import { requireUserAllowingPasswordChange, HttpError } from '@/lib/auth';
 import { handle, readJson, badRequest } from '@/lib/handler';
 import { transaction } from '@/lib/prisma';
-import { hashPassword, verifyPassword, checkPasswordPolicy } from '@/lib/password';
+import {
+  hashPassword,
+  verifyPassword,
+  checkPasswordPolicy,
+  MAX_PASSWORD_INPUT_LENGTH,
+} from '@/lib/password';
 import { createSession, revokeAllSessionsForUser, SESSION_COOKIE, SESSION_COOKIE_OPTIONS } from '@/lib/session';
 import { assertSameOrigin, clientIp, recordAuthEvent, userAgent } from '@/lib/security';
 import { cookies } from 'next/headers';
@@ -26,11 +31,17 @@ export async function POST(req: Request) {
 
     const { user } = await requireUserAllowingPasswordChange();
     const { currentPassword, newPassword } = await readJson<{
-      currentPassword?: string;
-      newPassword?: string;
+      currentPassword?: unknown;
+      newPassword?: unknown;
     }>(req);
 
-    if (!currentPassword || !newPassword) {
+    if (
+      typeof currentPassword !== 'string' ||
+      typeof newPassword !== 'string' ||
+      !currentPassword ||
+      !newPassword ||
+      currentPassword.length > MAX_PASSWORD_INPUT_LENGTH
+    ) {
       badRequest('currentPassword and newPassword are required.');
     }
 

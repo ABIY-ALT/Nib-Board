@@ -1,9 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Image from 'next/image';
-import { PanelLeftClose, PanelLeftOpen, X } from 'lucide-react';
+import { ChevronLeft, X } from 'lucide-react';
 import { cn } from '@/components/ui/primitives';
+import { RailRelief } from '@/components/layout/HexRelief';
 import { Role } from '@/lib/types';
 import { NavItem, ViewId, visibleGroups } from '@/lib/navigation';
 
@@ -33,12 +34,37 @@ interface SidebarProps {
   onCloseMobile: () => void;
 }
 
+/** The institution's lockup. The name drops away when the rail shows icons only. */
+const Brand: React.FC<{ showName: boolean; size: number }> = ({ showName, size }) => (
+  <div className="flex items-center gap-3 min-w-0">
+    <Image
+      src="/nib-logo.png"
+      alt=""
+      width={size}
+      height={size}
+      priority
+      className="rounded-lg object-contain shrink-0"
+    />
+    {showName && (
+      <div className="min-w-0 leading-tight">
+        <p className="text-[12px] font-bold tracking-tight text-ink truncate">
+          NIB INTERNATIONAL BANK S.C.
+        </p>
+        <p className="text-[10px] font-semibold tracking-wider uppercase text-nib-gold-600 dark:text-nib-gold-400 truncate">
+          Board Governance
+        </p>
+      </div>
+    )}
+  </div>
+);
+
 /**
- * Fixed navigation rail.
+ * The navigation rail, from the NIB design kit.
  *
- * Dark NIB brown so the working area stays the warm neutral the records are read
- * against; gold marks the active item and nothing else, which keeps "where am I"
- * unambiguous on a screen with a lot of status colour.
+ * A light rail over the hexagon relief: gold marks the active item and the
+ * collapse control and nothing else, which keeps "where am I" unambiguous on a
+ * screen with a lot of status colour. On the desktop it collapses to icons; below
+ * `lg` it becomes a drawer over the page.
  */
 export const Sidebar: React.FC<SidebarProps> = ({
   role,
@@ -53,13 +79,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const groups = visibleGroups(role, permissions);
 
+  // Escape closes the drawer, and a locked body stops the page scrolling
+  // underneath it.
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCloseMobile();
+    };
+    document.addEventListener('keydown', onKey);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [mobileOpen, onCloseMobile]);
+
   const badgeFor = (item: NavItem): number | null => {
     if (!item.badge) return null;
     const value = counts[item.badge];
     return value && value > 0 ? value : null;
   };
 
-  const NavButton: React.FC<{ item: NavItem }> = ({ item }) => {
+  const NavButton: React.FC<{ item: NavItem; compact: boolean }> = ({ item, compact }) => {
     const Icon = item.icon;
     const on = active === item.id;
     const badge = badgeFor(item);
@@ -67,152 +109,170 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
     return (
       <button
+        type="button"
         onClick={() => {
           onNavigate(item.id);
           onCloseMobile();
         }}
         aria-current={on ? 'page' : undefined}
-        title={collapsed ? item.label : undefined}
+        title={compact ? item.label : undefined}
         className={cn(
-          'w-full flex items-center gap-2.5 rounded-lg transition-colors group relative',
-          collapsed ? 'px-0 justify-center h-9' : 'px-2.5 h-9',
+          'group relative flex w-full h-10 items-center rounded-(--radius-control) text-[14px]',
+          'transition-colors duration-150',
+          compact ? 'justify-center px-0' : 'gap-3 px-3.5',
           on
-            ? 'bg-nib-gold-500 text-nib-brown-900 font-semibold shadow-card'
-            : 'text-sidebar-ink/85 hover:bg-white/8 hover:text-sidebar-ink font-medium'
+            ? 'bg-nib-gold-500/15 font-semibold text-nib-gold-800 dark:bg-nib-gold-500/12 dark:text-nib-gold-400'
+            : 'text-sidebar-ink hover:bg-sidebar-2'
         )}
       >
-        <Icon className={cn('w-4 h-4 shrink-0', on ? 'text-nib-brown-800' : 'text-sidebar-ink-2 group-hover:text-sidebar-ink')} />
-        {!collapsed && <span className="text-[13px] truncate flex-1 text-left">{item.label}</span>}
-        {badge !== null &&
-          (collapsed ? (
-            <span
-              className={cn(
-                'absolute top-1 right-1 w-1.5 h-1.5 rounded-full',
-                urgent ? 'bg-st-late' : 'bg-nib-gold-400'
-              )}
-            />
-          ) : (
-            <span
-              className={cn(
-                'text-[11px] font-bold tabular px-1.5 py-0.5 rounded shrink-0',
-                on
-                  ? 'bg-nib-brown-800/15 text-nib-brown-900'
-                  : urgent
-                    ? 'bg-st-late/20 text-st-late'
-                    : 'bg-white/10 text-sidebar-ink'
-              )}
-            >
-              {badge}
-            </span>
-          ))}
+        <Icon
+          aria-hidden="true"
+          className={cn(
+            'w-5 h-5 shrink-0 transition-colors',
+            on
+              ? 'text-nib-gold-700 dark:text-nib-gold-400'
+              : 'text-sidebar-ink-2 group-hover:text-sidebar-ink'
+          )}
+        />
+
+        {!compact && <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>}
+
+        {badge !== null && (
+          <span
+            className={cn(
+              'tabular shrink-0 rounded-full text-[10.5px] font-bold leading-none',
+              urgent
+                ? 'bg-st-late text-on-late'
+                : 'bg-nib-gold-500 text-nib-brown-900',
+              compact
+                ? 'absolute right-1.5 top-1 h-4 min-w-4 px-1 py-0.5 ring-2 ring-sidebar'
+                : 'px-2 py-1'
+            )}
+          >
+            {badge > 99 ? '99+' : badge}
+          </span>
+        )}
+
+        {/* The rail's edge marker: it sits in the nav's gutter, flush with the
+            rail's right edge, so the active page is found by scanning one line. */}
+        {on && (
+          <span
+            aria-hidden="true"
+            className={cn(
+              'absolute inset-y-0 w-1 rounded-l-md bg-nib-gold-500',
+              compact ? '-right-2' : '-right-3'
+            )}
+          />
+        )}
+
+        {/* The label must still reach a screen reader when the rail shows icons. */}
+        {compact && <span className="sr-only">{item.label}</span>}
       </button>
     );
   };
 
-  const content = (
-    <>
-      {/* Branding */}
-      <div
-        className={cn(
-          'flex items-center gap-2.5 border-b border-sidebar-line shrink-0',
-          collapsed ? 'px-3 justify-center h-14' : 'px-4 h-14'
-        )}
-      >
-        <Image
-          src="/nib-logo.png"
-          alt=""
-          width={32}
-          height={32}
-          priority
-          className="w-8 h-8 rounded-md object-contain shrink-0"
-        />
-        {!collapsed && (
-          <div className="min-w-0">
-            <p className="text-[11px] font-bold text-sidebar-ink leading-tight truncate">
-              NIB INTERNATIONAL BANK S.C.
-            </p>
-            <p className="text-[10px] text-nib-gold-400 font-semibold tracking-wide leading-tight">
-              BOARD GOVERNANCE
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Navigation */}
-      <nav
-        aria-label="Primary"
-        className={cn('flex-1 overflow-y-auto py-3 space-y-4', collapsed ? 'px-2' : 'px-3')}
-      >
-        {groups.map((group) => (
-          <div key={group.label}>
-            {!collapsed && (
-              <p className="px-2.5 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-sidebar-ink-2">
-                {group.label}
-              </p>
-            )}
-            {collapsed && <div className="mx-2 mb-2 border-t border-sidebar-line" />}
-            <div className="space-y-0.5">
-              {group.items.map((item) => (
-                <NavButton key={item.id} item={item} />
-              ))}
-            </div>
-          </div>
-        ))}
-      </nav>
-
-      {/* Collapse toggle — desktop only */}
-      <div className="hidden lg:block border-t border-sidebar-line p-2 shrink-0">
-        <button
-          onClick={onToggleCollapsed}
-          className={cn(
-            'w-full flex items-center gap-2 h-8 rounded-lg text-sidebar-ink-2 hover:bg-white/8 hover:text-sidebar-ink transition-colors',
-            collapsed ? 'justify-center' : 'px-2.5'
-          )}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {collapsed ? (
-            <PanelLeftOpen className="w-4 h-4" />
+  const nav = (compact: boolean) => (
+    <nav
+      aria-label="Primary"
+      className={cn(
+        'scroll-quiet flex flex-1 flex-col gap-5 overflow-y-auto pb-6 pt-2',
+        compact ? 'px-2' : 'px-3'
+      )}
+    >
+      {groups.map((group) => (
+        <div key={group.label}>
+          {compact ? (
+            <div className="mx-auto mb-2 h-px w-6 bg-sidebar-line" aria-hidden="true" />
           ) : (
-            <>
-              <PanelLeftClose className="w-4 h-4" />
-              <span className="text-[12px] font-medium">Collapse</span>
-            </>
+            <h2 className="mb-1.5 px-3.5 text-[11.5px] font-medium uppercase tracking-[0.08em] text-sidebar-ink-2">
+              {group.label}
+            </h2>
           )}
-        </button>
-      </div>
-    </>
+          <ul className="space-y-0.5">
+            {group.items.map((item) => (
+              <li key={item.id}>
+                <NavButton item={item} compact={compact} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </nav>
   );
 
   return (
     <>
-      {/* Desktop rail */}
+      {/* Desktop rail. Raised above the content column so the collapse toggle,
+          which straddles the rail's edge, stays clickable over the header band. */}
       <aside
         className={cn(
-          'hidden lg:flex flex-col bg-sidebar border-r border-sidebar-line shrink-0',
-          'transition-[width] duration-200',
+          'no-print relative z-40 hidden lg:flex flex-col shrink-0 bg-sidebar shadow-rail',
+          // A hairline in both themes: with the honeycomb on both sides of the
+          // edge, the shadow alone no longer says where the rail ends.
+          'border-r border-sidebar-line',
+          'transition-[width] duration-200 ease-out',
           collapsed ? 'w-[4.5rem]' : 'w-[17rem]'
         )}
       >
-        {content}
+        <RailRelief />
+
+        <div
+          className={cn(
+            'flex h-[4.5rem] shrink-0 items-center',
+            collapsed ? 'justify-center px-2' : 'px-5'
+          )}
+        >
+          <Brand showName={!collapsed} size={collapsed ? 32 : 36} />
+        </div>
+
+        <button
+          type="button"
+          onClick={onToggleCollapsed}
+          aria-pressed={collapsed}
+          title={collapsed ? 'Expand navigation' : 'Collapse navigation'}
+          className={cn(
+            'absolute -right-3.5 top-[1.375rem] flex h-7 w-7 items-center justify-center rounded-full',
+            'bg-nib-gold-500 text-nib-brown-900 shadow-brand ring-[5px] ring-app',
+            'transition-[background-color,transform] duration-150 hover:bg-nib-gold-400 active:scale-95'
+          )}
+        >
+          <ChevronLeft
+            aria-hidden="true"
+            className={cn('h-4 w-4 shrink-0 transition-transform duration-200', collapsed && 'rotate-180')}
+          />
+          <span className="sr-only">{collapsed ? 'Expand navigation' : 'Collapse navigation'}</span>
+        </button>
+
+        {nav(collapsed)}
       </aside>
 
-      {/* Mobile drawer */}
+      {/* Mobile drawer. The collapsed setting does not apply: it always shows labels. */}
       {mobileOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 flex">
+        <div className="no-print lg:hidden">
           <div
-            className="absolute inset-0 bg-nib-brown-900/60 backdrop-blur-[1px]"
+            className="fixed inset-0 z-40 bg-scrim backdrop-blur-sm"
             onClick={onCloseMobile}
             aria-hidden="true"
           />
-          <aside className="relative flex flex-col w-[17rem] max-w-[85vw] bg-sidebar border-r border-sidebar-line shadow-overlay">
-            <button
-              onClick={onCloseMobile}
-              className="absolute top-3.5 right-3 text-sidebar-ink-2 hover:text-sidebar-ink"
-              aria-label="Close navigation"
-            >
-              <X className="w-4 h-4" />
-            </button>
-            {content}
+          <aside
+            role="dialog"
+            aria-modal="true"
+            aria-label="Main navigation"
+            className="fixed inset-y-0 left-0 z-50 flex w-[17rem] max-w-[85vw] flex-col bg-sidebar shadow-overlay dark:border-r dark:border-sidebar-line"
+          >
+            <RailRelief />
+            <div className="flex h-[4.5rem] shrink-0 items-center justify-between gap-2 px-5">
+              <Brand showName size={34} />
+              <button
+                type="button"
+                onClick={onCloseMobile}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-(--radius-control) text-sidebar-ink-2 transition-colors hover:bg-sidebar-2 hover:text-sidebar-ink"
+              >
+                <X className="h-5 w-5" aria-hidden="true" />
+                <span className="sr-only">Close navigation</span>
+              </button>
+            </div>
+            {nav(false)}
           </aside>
         </div>
       )}

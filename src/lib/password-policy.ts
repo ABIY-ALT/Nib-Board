@@ -21,6 +21,13 @@
  */
 export const MIN_PASSWORD_LENGTH = 6;
 
+/**
+ * The ceiling on anything accepted as a password, at sign-in or when setting
+ * one. Far above any real passphrase; it exists so the API never spends Argon2
+ * work on a multi-megabyte string sent to tie up the server.
+ */
+export const MAX_PASSWORD_INPUT_LENGTH = 1024;
+
 export interface PasswordPolicyResult {
   ok: boolean;
   problems: string[];
@@ -84,6 +91,11 @@ export function checkPasswordPolicy(
   const problems = passwordRules(context)
     .filter((rule) => !rule.test(plain))
     .map((rule) => rule.problem);
+
+  // Not one of the displayed rules: no officer will ever meet it by accident.
+  if (plain.length > MAX_PASSWORD_INPUT_LENGTH) {
+    problems.push(`must be at most ${MAX_PASSWORD_INPUT_LENGTH} characters`);
+  }
 
   return { ok: problems.length === 0, problems };
 }

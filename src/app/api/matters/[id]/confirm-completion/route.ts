@@ -59,6 +59,17 @@ export async function POST(req: Request, { params }: Params) {
         throw new HttpError(409, 'This matter has no Implementation Report to review.');
       }
 
+      // Maker-checker. Submission always routes the report to someone else for
+      // review, but nothing stopped the submitter calling this endpoint
+      // themselves — a CEO, Chief or administrator who executed a matter could
+      // submit, confirm and (for the CEO and ADMIN) close it alone.
+      if (decision === 'Approved' && report.submittedById === user.id) {
+        throw new HttpError(
+          403,
+          'Access Denied: you submitted this Implementation Report, so its completion must be confirmed by a different authorized reviewer.'
+        );
+      }
+
       await tx.implementationReport.update({
         where: { matterId: id },
         data: {

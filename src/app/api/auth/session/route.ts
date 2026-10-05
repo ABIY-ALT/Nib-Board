@@ -10,7 +10,7 @@ import {
   SESSION_COOKIE,
   SESSION_COOKIE_OPTIONS,
 } from '@/lib/session';
-import { verifyPassword } from '@/lib/password';
+import { verifyPassword, MAX_PASSWORD_INPUT_LENGTH } from '@/lib/password';
 import {
   assertLoginRateLimit,
   assertSameOrigin,
@@ -25,6 +25,9 @@ import { Role } from '@/lib/types';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+/** RFC 5321 caps a mailbox address at 254 characters. */
+const MAX_EMAIL_LENGTH = 254;
 
 /**
  * Who am I? Returns null rather than 401 so the login page can render.
@@ -55,11 +58,21 @@ export async function POST(req: Request) {
   return handle(async () => {
     assertSameOrigin(req);
 
-    const { email, password } = await readJson<{ email?: string; password?: string }>(req);
+    const { email, password } = await readJson<{ email?: unknown; password?: unknown }>(req);
     const ip = clientIp(req);
     const ua = userAgent(req);
 
-    if (!email || !password) {
+    // Shape is checked before anything touches the database or Argon2: a
+    // non-string would otherwise surface as a 500, and an unbounded password
+    // is CPU and memory spent on hashing input no account can have.
+    if (
+      typeof email !== 'string' ||
+      typeof password !== 'string' ||
+      !email ||
+      !password ||
+      email.length > MAX_EMAIL_LENGTH ||
+      password.length > MAX_PASSWORD_INPUT_LENGTH
+    ) {
       throw new HttpError(400, 'Email and password are required.');
     }
 

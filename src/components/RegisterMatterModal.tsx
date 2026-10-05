@@ -189,7 +189,7 @@ export const RegisterMatterModal: React.FC<RegisterMatterModalProps> = ({
 
   return (
     <div className={modalOverlayClass}>
-      <div className="bg-surface rounded-[--radius-card] shadow-overlay border border-line w-full max-w-3xl overflow-hidden my-8">
+      <div className="bg-surface rounded-(--radius-card) shadow-overlay border border-line w-full max-w-3xl overflow-hidden my-8">
         
         {/* Modal Header */}
         <div className="bg-nib-brown-800 text-nib-gold-100 px-6 py-4 flex items-center justify-between border-b border-[#1f426b]">
@@ -384,7 +384,7 @@ export const RegisterMatterModal: React.FC<RegisterMatterModalProps> = ({
           </div>
 
           {/* Organizational Routing & Assignment */}
-          <div className="p-4 bg-surface-2 rounded-[--radius-card] border border-line space-y-3">
+          <div className="p-4 bg-surface-2 rounded-(--radius-card) border border-line space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="font-bold text-ink uppercase tracking-wider text-[11px] flex items-center space-x-1.5">
                 <Building className="w-3.5 h-3.5 text-nib-gold-600" />

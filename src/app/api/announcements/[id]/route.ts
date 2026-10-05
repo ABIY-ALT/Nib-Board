@@ -5,6 +5,7 @@ import { assertPermission, getPermissions } from '@/lib/permissions.server';
 import { PERMISSIONS, hasAnyPermission, hasPermission } from '@/lib/permissions';
 import {
   ANNOUNCEMENT_INCLUDE,
+  assertRelatedMatterInScope,
   auditAnnouncement,
   inAudience,
   parseAnnouncementInput,
@@ -106,6 +107,11 @@ export async function PATCH(req: Request, { params }: Params) {
     }
 
     const input = parseAnnouncementInput(await readJson<Record<string, unknown>>(req));
+    // Only a new reference is checked: an editor amending someone else's
+    // announcement keeps the matter its author was entitled to cite.
+    if (input.relatedMatterId !== existing.relatedMatterId) {
+      await assertRelatedMatterInScope(user, input.relatedMatterId);
+    }
 
     const updated = await prisma.announcement.update({
       where: { id },

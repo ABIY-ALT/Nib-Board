@@ -126,7 +126,7 @@ export const SetupPasswordPage: React.FC = () => {
               width={44}
               height={44}
               priority
-              className="w-11 h-11 rounded-[--radius-card] object-contain"
+              className="w-11 h-11 rounded-(--radius-card) object-contain"
             />
             <div>
               <h1 className="font-bold text-sm">NIB International Bank</h1>
@@ -134,7 +134,7 @@ export const SetupPasswordPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-surface border border-line rounded-[--radius-card] p-6 shadow-overlay">
+          <div className="bg-surface border border-line rounded-(--radius-card) p-6 shadow-overlay">
             <div className="flex items-start space-x-3">
               <AlertTriangle className="w-5 h-5 text-st-late shrink-0 mt-0.5" />
               <div>
@@ -167,7 +167,7 @@ export const SetupPasswordPage: React.FC = () => {
               width={44}
               height={44}
               priority
-              className="w-11 h-11 rounded-[--radius-card] object-contain"
+              className="w-11 h-11 rounded-(--radius-card) object-contain"
             />
             <div>
               <h1 className="font-bold text-sm">NIB International Bank</h1>
@@ -175,7 +175,7 @@ export const SetupPasswordPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-surface border border-line rounded-[--radius-card] p-6 shadow-overlay">
+          <div className="bg-surface border border-line rounded-(--radius-card) p-6 shadow-overlay">
             <div className="flex items-start space-x-3">
               <CheckCircle className="w-5 h-5 text-st-done shrink-0 mt-0.5" />
               <div>
@@ -210,7 +210,7 @@ export const SetupPasswordPage: React.FC = () => {
             width={44}
             height={44}
             priority
-            className="w-11 h-11 rounded-[--radius-card] object-contain"
+            className="w-11 h-11 rounded-(--radius-card) object-contain"
           />
           <div>
             <h1 className="font-bold text-sm">NIB International Bank</h1>
@@ -218,7 +218,7 @@ export const SetupPasswordPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-surface border border-line rounded-[--radius-card] p-6 shadow-overlay">
+        <div className="bg-surface border border-line rounded-(--radius-card) p-6 shadow-overlay">
           <div className="flex items-start space-x-3 mb-5">
             <KeyRound className="w-5 h-5 text-nib-gold-400 mt-0.5 shrink-0" />
             <div>

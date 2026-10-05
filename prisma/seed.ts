@@ -7,6 +7,7 @@
  * system shipped with.
  */
 import 'dotenv/config';
+import { randomBytes } from 'crypto';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client';
 import { hashPassword } from '../src/lib/password';
@@ -29,9 +30,31 @@ const MATTER_TYPES = [
 /** A fixture date string, as the Date its column wants — or null when blank. */
 const date = (v: string | undefined | null): Date | null => (v ? new Date(v) : null);
 
+/**
+ * A credential from the environment, or a random one when none is set.
+ *
+ * There used to be a fixed fallback for each, written in this file — so any
+ * database seeded without setting them had an administrator password, exempt
+ * from forced change, that anyone with the source could read.
+ */
+function credential(name: string): { value: string; generated: boolean } {
+  const configured = process.env[name];
+  if (configured) return { value: configured, generated: false };
+  return { value: `Nib-${randomBytes(12).toString('base64url')}`, generated: true };
+}
+
 async function main() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) throw new Error('DATABASE_URL is not set');
+
+  // The first thing this script does is TRUNCATE every table, including the
+  // append-only audit logs. Pointed at a live database by mistake, it erases
+  // the Board register and its history, so it runs only when asked to.
+  if (process.env.ALLOW_SEED !== 'true') {
+    throw new Error(
+      'Refusing to seed: this ERASES every table, audit logs included. Set ALLOW_SEED=true to run it against a disposable database.'
+    );
+  }
 
   const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
 
@@ -52,15 +75,15 @@ async function main() {
     // Every seeded officer account gets the same temporary credential and is
     // flagged mustChangePassword, so the shared value cannot be used to do any
     // work: the first thing each user is forced to do is replace it.
-    const temporaryPassword = process.env.SEED_PASSWORD ?? 'NibBoard#2026temp';
-    const temporaryHash = await hashPassword(temporaryPassword);
+    const temporaryPassword = credential('SEED_PASSWORD');
+    const temporaryHash = await hashPassword(temporaryPassword.value);
 
     // The administrator is the exception, in both directions. It is exempt from
     // the forced change (see passwordChangeEnforced in src/lib/session.ts),
     // because it is the account used to recover the others — so it must not
     // share the temporary credential every officer is handed. It gets its own.
-    const adminPassword = process.env.ADMIN_PASSWORD ?? 'Nib@Admin2026';
-    const adminHash = await hashPassword(adminPassword);
+    const adminPassword = credential('ADMIN_PASSWORD');
+    const adminHash = await hashPassword(adminPassword.value);
 
     await prisma.user.createMany({
       data: NIB_USERS.map((u) => {
@@ -242,14 +265,20 @@ async function main() {
       notifications: await prisma.notification.count(),
     });
 
+    // A password that came from the environment is never echoed: seed output
+    // ends up in terminals and CI logs. One generated here is shown once,
+    // because nobody else knows it.
+    const shown = (c: { value: string; generated: boolean }, name: string) =>
+      c.generated ? `the generated password "${c.value}"` : `the value of ${name}`;
+
     console.log(
       [
         '',
-        `Officer accounts share the temporary password "${temporaryPassword}" and must change it`,
-        'at first sign-in. Set SEED_PASSWORD to choose a different one.',
+        `Officer accounts share ${shown(temporaryPassword, 'SEED_PASSWORD')} and must change it`,
+        'at first sign-in.',
         '',
-        `The administrator (admin@nibbank.et) signs in with "${adminPassword}" and is NOT forced`,
-        'to change it. Set ADMIN_PASSWORD to choose a different one.',
+        `The administrator (admin@nibbank.com.et) signs in with ${shown(adminPassword, 'ADMIN_PASSWORD')}`,
+        'and is NOT forced to change it.',
         '',
         "Sign in with the account's email address.",
         '',

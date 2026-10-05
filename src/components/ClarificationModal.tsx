@@ -91,7 +91,7 @@ export const ClarificationModal: React.FC<ClarificationModalProps> = ({
 
   return (
     <div className={modalOverlayClass}>
-      <div className="bg-surface rounded-[--radius-card] shadow-overlay border border-line w-full max-w-lg overflow-hidden">
+      <div className="bg-surface rounded-(--radius-card) shadow-overlay border border-line w-full max-w-lg overflow-hidden">
         
         <div className="bg-nib-gold-600 text-white px-6 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-2.5">

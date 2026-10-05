@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { BODMatter } from '@/lib/types';
+import { csvCell } from '@/lib/audit-csv';
 import { 
   getMatterTypeBadge, 
   getStatusBadge, 
@@ -129,8 +130,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onSelectMatter }) => {
   const handleExportCSV = () => {
     const headers = ['Business Area', 'Director', 'Total Directives', 'Completed', 'In Progress', 'Overdue', 'Completion Rate'];
     const rows = directorStats.map((d) => [
-      `"${d.area}"`,
-      `"${d.directorName}"`,
+      csvCell(d.area),
+      csvCell(d.directorName),
       d.total,
       d.completed,
       d.pending,
@@ -151,7 +152,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onSelectMatter }) => {
     <div className="space-y-6">
       
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-surface p-4 rounded-[--radius-card] shadow-card border border-line">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-surface p-4 rounded-(--radius-card) shadow-card border border-transparent dark:border-line">
         <div>
           <h1 className="text-lg font-bold text-ink dark:text-white flex items-center space-x-2">
             <span>Executive Governance & Compliance Intelligence</span>
@@ -211,7 +212,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onSelectMatter }) => {
 
       {/* High-Level Stat Bar */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
-        <div className="bg-surface p-4 rounded-[--radius-card] shadow-card border border-line">
+        <div className="bg-surface p-4 rounded-(--radius-card) shadow-card border border-transparent dark:border-line">
           <span className="text-[11px] font-semibold text-ink-3 uppercase">Overall Fulfillment Rate</span>
           <div className="flex items-baseline space-x-2 mt-1">
             <span className="text-2xl font-black text-st-done font-mono">
@@ -226,7 +227,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onSelectMatter }) => {
           </div>
         </div>
 
-        <div className="bg-surface p-4 rounded-[--radius-card] shadow-card border border-line">
+        <div className="bg-surface p-4 rounded-(--radius-card) shadow-card border border-transparent dark:border-line">
           <span className="text-[11px] font-semibold text-ink-3 uppercase">Active Operational Queue</span>
           <div className="flex items-baseline space-x-2 mt-1">
             <span className="text-2xl font-black text-nib-gold-600 font-mono">
@@ -239,7 +240,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onSelectMatter }) => {
           </p>
         </div>
 
-        <div className="bg-surface p-4 rounded-[--radius-card] shadow-card border border-line">
+        <div className="bg-surface p-4 rounded-(--radius-card) shadow-card border border-transparent dark:border-line">
           <span className="text-[11px] font-semibold text-ink-3 uppercase">Overdue Risk Exposure</span>
           <div className="flex items-baseline space-x-2 mt-1">
             <span className="text-2xl font-black text-st-late font-mono">
@@ -252,7 +253,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onSelectMatter }) => {
           </p>
         </div>
 
-        <div className="bg-surface p-4 rounded-[--radius-card] shadow-card border border-line">
+        <div className="bg-surface p-4 rounded-(--radius-card) shadow-card border border-transparent dark:border-line">
           <span className="text-[11px] font-semibold text-ink-3 uppercase">Clarifications Handled</span>
           <div className="flex items-baseline space-x-2 mt-1">
             <span className="text-2xl font-black text-st-info font-mono">
@@ -270,7 +271,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onSelectMatter }) => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* Matter Type Breakdown Table */}
-        <div className="lg:col-span-5 bg-surface rounded-[--radius-card] p-5 shadow-card border border-line space-y-4">
+        <div className="lg:col-span-5 bg-surface rounded-(--radius-card) p-5 shadow-card border border-transparent dark:border-line space-y-4">
           <h2 className="text-xs font-bold text-ink dark:text-white uppercase tracking-wider flex items-center space-x-2">
             <Layers className="w-4 h-4 text-nib-gold-500" />
             <span>Fulfillment by Board Matter Type</span>
@@ -307,7 +308,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onSelectMatter }) => {
         </div>
 
         {/* Responsible Director Accountability League */}
-        <div className="lg:col-span-7 bg-surface rounded-[--radius-card] p-5 shadow-card border border-line space-y-4">
+        <div className="lg:col-span-7 bg-surface rounded-(--radius-card) p-5 shadow-card border border-transparent dark:border-line space-y-4">
           <h2 className="text-xs font-bold text-ink dark:text-white uppercase tracking-wider flex items-center space-x-2">
             <UserCheck className="w-4 h-4 text-st-done" />
             <span>Director Operational Performance Scorecard</span>
@@ -351,7 +352,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onSelectMatter }) => {
       </div>
 
       {/* Business Area Directorate Detailed Breakdown */}
-      <div className="bg-surface rounded-[--radius-card] p-5 shadow-card border border-line space-y-4">
+      <div className="bg-surface rounded-(--radius-card) p-5 shadow-card border border-transparent dark:border-line space-y-4">
         <h2 className="text-xs font-bold text-ink dark:text-white uppercase tracking-wider flex items-center space-x-2">
           <Building2 className="w-4 h-4 text-st-info" />
           <span>Directorate Compliance Matrix</span>
@@ -364,7 +365,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onSelectMatter }) => {
             return (
               <div
                 key={area}
-                className="p-4 rounded-[--radius-card] border border-line bg-surface-2 space-y-3"
+                className="p-4 rounded-(--radius-card) border border-line bg-surface-2 space-y-3"
               >
                 <div className="flex items-start justify-between">
                   <div>

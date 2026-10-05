@@ -313,7 +313,7 @@ export const RolesMatrix: React.FC = () => {
                                   className={cn(
                                     'inline-flex items-center justify-center w-6 h-6 rounded-md transition shadow-xs',
                                     canEdit
-                                      ? 'bg-st-done text-white hover:bg-st-done/90 ring-2 ring-st-done/20'
+                                      ? 'bg-st-done text-on-done hover:bg-st-done/90 ring-2 ring-st-done/20'
                                       : 'bg-st-done-bg text-st-done border border-st-done/30'
                                   )}
                                   title={canEdit ? 'Click to toggle permission' : 'Granted'}
@@ -349,7 +349,7 @@ export const RolesMatrix: React.FC = () => {
       <div className="px-4 py-3 border-t border-line bg-surface-2/50 flex flex-wrap items-center justify-between gap-3 text-[11px] text-ink-3">
         <div className="flex items-center gap-4">
           <span className="flex items-center gap-1.5">
-            <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-st-done text-white text-[9px]">
+            <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-st-done text-on-done text-[9px]">
               <Check className="w-3 h-3" />
             </span>
             Permission Granted

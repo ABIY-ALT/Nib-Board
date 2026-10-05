@@ -260,7 +260,7 @@ export const TaskRemindersView: React.FC<Props> = ({ onOpenMatter }) => {
       {notice && (
         <div
           className={cn(
-            'mb-4 flex items-start gap-2 rounded-[--radius-control] border px-3 py-2',
+            'mb-4 flex items-start gap-2 rounded-(--radius-control) border px-3 py-2',
             notice.tone === 'ok'
               ? 'border-line bg-surface-2'
               : 'border-st-late/30 bg-st-late-bg'
@@ -378,7 +378,7 @@ const Summary: React.FC<{
   <button
     onClick={onClick}
     className={cn(
-      'bg-surface border rounded-[--radius-card] shadow-card p-3.5 text-left w-full transition-all',
+      'bg-surface border rounded-(--radius-card) shadow-card p-3.5 text-left w-full transition-all',
       active ? 'border-nib-gold-500 shadow-raised' : 'border-line hover:border-nib-gold-500/60'
     )}
   >
@@ -441,7 +441,7 @@ const SendReminderDialog: React.FC<{
 
   return (
     <div className={modalOverlayClass}>
-      <div className="bg-surface rounded-[--radius-card] shadow-overlay border border-line w-full max-w-lg overflow-hidden">
+      <div className="bg-surface rounded-(--radius-card) shadow-overlay border border-line w-full max-w-lg overflow-hidden">
         <div className="bg-nib-brown-800 text-nib-gold-100 px-5 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <span className="w-8 h-8 rounded-lg bg-nib-gold-500 text-nib-brown-900 flex items-center justify-center">

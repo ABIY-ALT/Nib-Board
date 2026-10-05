@@ -70,8 +70,8 @@ const KpiCard: React.FC<{
     <Wrapper
       onClick={onClick}
       className={cn(
-        'bg-surface border border-line rounded-[--radius-card] shadow-card p-3.5 text-left w-full',
-        onClick && 'hover:border-nib-gold-500 hover:shadow-raised transition-all cursor-pointer'
+        'bg-surface border border-transparent dark:border-line rounded-(--radius-card) shadow-card p-3.5 text-left w-full',
+        onClick && 'hover:shadow-raised dark:hover:border-nib-gold-500/45 transition-[box-shadow,border-color] duration-200 cursor-pointer'
       )}
     >
       <div className="flex items-start justify-between gap-2 mb-2">

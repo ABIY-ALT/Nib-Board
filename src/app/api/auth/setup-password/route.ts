@@ -4,6 +4,7 @@ import { handle, readJson, badRequest } from '@/lib/handler';
 import { transaction } from '@/lib/prisma';
 import { hashPassword, checkPasswordPolicy } from '@/lib/password';
 import { resolveSetupToken, consumeSetupToken } from '@/lib/setup-token';
+import { revokeAllSessionsForUser } from '@/lib/session';
 import { clientIp, recordAuthEvent, userAgent } from '@/lib/security';
 
 export const runtime = 'nodejs';
@@ -51,7 +52,13 @@ export async function POST(req: Request) {
       newPassword?: string;
     }>(req);
 
-    if (!token || !newPassword) {
+    if (
+      typeof token !== 'string' ||
+      typeof newPassword !== 'string' ||
+      !token ||
+      !newPassword ||
+      token.length > 256
+    ) {
       badRequest('token and newPassword are required.');
     }
 
@@ -72,6 +79,16 @@ export async function POST(req: Request) {
     }
 
     await transaction(async (tx) => {
+      // Consume the token first, so it cannot be reused. Two requests racing
+      // with the same link both pass the check above; only one consumes it,
+      // and the other is refused here before it can set a password.
+      if (!(await consumeSetupToken(tx, token!))) {
+        throw new HttpError(
+          404,
+          'This setup link is invalid or has expired. Please contact your administrator.'
+        );
+      }
+
       // Set the password and clear the forced-change flag.
       await tx.user.update({
         where: { id: setupUser.userId },
@@ -84,8 +101,10 @@ export async function POST(req: Request) {
         },
       });
 
-      // Consume the token so it cannot be reused.
-      await consumeSetupToken(tx, token!);
+      // A setup link is also how an administrator resets a credential that
+      // may have leaked, so any session opened with the old one ends here —
+      // exactly as it does on a normal password change.
+      await revokeAllSessionsForUser(tx, setupUser.userId, 'password set via setup link');
 
       // Record the event in the security audit trail.
       await recordAuthEvent(tx, {

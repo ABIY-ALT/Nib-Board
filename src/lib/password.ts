@@ -44,6 +44,7 @@ export {
   checkPasswordPolicy,
   passwordRules,
   MIN_PASSWORD_LENGTH,
+  MAX_PASSWORD_INPUT_LENGTH,
   type PasswordPolicyResult,
   type PasswordRule,
 } from './password-policy';

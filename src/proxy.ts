@@ -3,6 +3,16 @@ import { NextRequest, NextResponse } from 'next/server';
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 /**
+ * Mirrors `experimental.proxyClientMaxBodySize` in next.config.ts. Past it,
+ * Next.js hands the route a silently truncated body, so a request declaring
+ * more is answered with a clear 413 instead. Next.js still drains the body
+ * before responding (bytes past the limit are discarded, not held), so
+ * refusing an oversized upload before it is transferred at all is the job of
+ * the reverse proxy's own request-size limit.
+ */
+const MAX_REQUEST_BODY_BYTES = 26 * 1024 * 1024;
+
+/**
  * Returns a rejection reason for a cross-site state-changing request, or null
  * when the request is acceptable.
  *
@@ -44,6 +54,11 @@ function crossSiteRejection(req: NextRequest): string | null {
  *
  * Named `proxy` and living in proxy.ts: Next.js 16 renamed the `middleware`
  * file convention, and the old name now emits a deprecation warning.
+ *
+ * It must sit beside `app/` — here in `src/`. At the project root, where it
+ * used to be, Next.js silently ignores it: none of these headers and none of
+ * the cross-site checks below were ever applied. `next build` lists the proxy
+ * in its output when it has been picked up.
  */
 export function proxy(req: NextRequest) {
   const isProduction = process.env.NODE_ENV === 'production';
@@ -80,6 +95,12 @@ export function proxy(req: NextRequest) {
     const rejection = crossSiteRejection(req);
     if (rejection) {
       return NextResponse.json({ error: rejection }, { status: 403 });
+    }
+    if (Number(req.headers.get('content-length')) > MAX_REQUEST_BODY_BYTES) {
+      return NextResponse.json(
+        { error: 'The upload is larger than the 25 MB limit.' },
+        { status: 413 }
+      );
     }
   }
 

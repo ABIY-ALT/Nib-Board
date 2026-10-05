@@ -69,7 +69,7 @@ export const ConfirmCompletionModal: React.FC<ConfirmCompletionModalProps> = ({
 
   return (
     <div className={modalOverlayClass}>
-      <div className="bg-surface rounded-[--radius-card] shadow-overlay border border-line w-full max-w-lg overflow-hidden">
+      <div className="bg-surface rounded-(--radius-card) shadow-overlay border border-line w-full max-w-lg overflow-hidden">
         
         {/* Header */}
         <div className="bg-teal-800 text-white px-6 py-4 flex items-center justify-between">
@@ -102,7 +102,7 @@ export const ConfirmCompletionModal: React.FC<ConfirmCompletionModalProps> = ({
             </label>
             <div className="grid grid-cols-2 gap-3">
               <label
-                className={`p-3 rounded-[--radius-card] border cursor-pointer transition flex flex-col justify-between ${
+                className={`p-3 rounded-(--radius-card) border cursor-pointer transition flex flex-col justify-between ${
  decision === 'Approved'
                     ? 'border-teal-500 bg-teal-50/50 dark:bg-teal-950/30'
                     : 'border-line bg-surface-2'
@@ -128,7 +128,7 @@ export const ConfirmCompletionModal: React.FC<ConfirmCompletionModalProps> = ({
               </label>
 
               <label
-                className={`p-3 rounded-[--radius-card] border cursor-pointer transition flex flex-col justify-between ${
+                className={`p-3 rounded-(--radius-card) border cursor-pointer transition flex flex-col justify-between ${
  decision === 'Revision Requested'
                     ? 'border-rose-500 bg-rose-50/50 dark:bg-rose-950/30'
                     : 'border-line bg-surface-2'

@@ -86,16 +86,19 @@ export async function resolveSetupToken(token: string): Promise<SetupTokenUser |
 }
 
 /**
- * Marks a token as consumed. Called after the password has been set.
+ * Marks a token as consumed, reporting whether this call is the one that did.
  *
- * Uses `updateMany` with the hash predicate so a concurrent call simply
- * matches zero rows rather than throwing.
+ * Uses `updateMany` with the full validity predicate, so of two concurrent
+ * requests carrying the same link exactly one matches the row; the other gets
+ * `false` and must abandon its transaction. Checking `resolveSetupToken` alone
+ * is not enough — both requests can pass that read before either writes.
  */
-export async function consumeSetupToken(db: Db, token: string): Promise<void> {
-  await db.passwordSetupToken.updateMany({
-    where: { tokenHash: hashToken(token), usedAt: null },
+export async function consumeSetupToken(db: Db, token: string): Promise<boolean> {
+  const { count } = await db.passwordSetupToken.updateMany({
+    where: { tokenHash: hashToken(token), usedAt: null, expiresAt: { gt: new Date() } },
     data: { usedAt: new Date() },
   });
+  return count === 1;
 }
 
 /**

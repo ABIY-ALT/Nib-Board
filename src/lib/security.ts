@@ -89,15 +89,28 @@ export async function recordAuthEvent(db: Db, e: AuthEventInput): Promise<void> 
 // ------------------------------------------------------------ request facts
 
 /**
- * Best-effort client address.
+ * How many reverse proxies we control sit in front of the application. Each
+ * one appends the address it received the connection from to X-Forwarded-For.
+ * The documented deployment is one (IIS / Nginx → next start).
+ */
+const TRUSTED_PROXY_HOPS = Math.max(1, Number.parseInt(process.env.TRUSTED_PROXY_HOPS ?? '1', 10) || 1);
+
+/**
+ * Best-effort client address, used for rate-limiting and forensics — never for
+ * authorization.
  *
- * X-Forwarded-For is only meaningful behind a proxy you control, and is
- * attacker-controlled otherwise — it is used here for rate-limiting and
- * forensics, never for authorization.
+ * Read from the right of X-Forwarded-For, not the left. Every entry left of
+ * the ones our own proxies appended is whatever the client chose to send, so
+ * taking the first entry let a caller pick a fresh "address" for every sign-in
+ * attempt and walk straight past the per-address limiter. With no proxy in
+ * front, Next.js fills the header from the socket when the client sent none.
  */
 export function clientIp(req: Request): string | null {
   const forwarded = req.headers.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0]!.trim();
+  if (forwarded) {
+    const hops = forwarded.split(',').map((h) => h.trim()).filter(Boolean);
+    if (hops.length) return hops[Math.max(0, hops.length - TRUSTED_PROXY_HOPS)]!;
+  }
   return req.headers.get('x-real-ip');
 }
 

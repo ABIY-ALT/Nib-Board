@@ -1,6 +1,6 @@
 import path from 'path';
 import fs from 'fs';
-import nodemailer from 'nodemailer';
+import nodemailer, { type SendMailOptions } from 'nodemailer';
 
 // ------------------------------------------------------------- configuration
 
@@ -59,6 +59,10 @@ function createTransport() {
     host: EMAIL_HOST,
     port: EMAIL_PORT,
     secure: false, // STARTTLS — upgrade after EHLO
+    // Without this, a relay that does not advertise STARTTLS — or anyone on the
+    // path who strips the advertisement — gets the AUTH exchange, and with it
+    // the mailbox password, in plain text. Refuse to send instead.
+    requireTLS: true,
     auth: {
       user: EMAIL_USER,
       pass: EMAIL_PASS,
@@ -121,7 +125,7 @@ function emailShell(body: string): string {
 function ctaButton(label: string, url: string): string {
   return `<table role="presentation" cellpadding="0" cellspacing="0" width="100%">
   <tr><td align="center" style="padding:24px 0 8px;">
-    <a href="${url}" target="_blank"
+    <a href="${escapeHtml(url)}" target="_blank"
        style="display:inline-block;padding:14px 40px;background:#8b7340;color:#ffffff;
               font-size:15px;font-weight:700;text-decoration:none;border-radius:8px;
               letter-spacing:0.02em;">
@@ -135,7 +139,7 @@ function ctaButton(label: string, url: string): string {
  * Sends an email with automatic retry when hitting transient SMTP rate limits (e.g. 421 4.4.2).
  */
 async function sendMailWithRetry(
-  mailOptions: nodemailer.SendMailOptions,
+  mailOptions: SendMailOptions,
   maxRetries = 2
 ): Promise<void> {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {

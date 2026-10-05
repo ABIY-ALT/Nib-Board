@@ -167,7 +167,7 @@ export const MeetingDetailsCard: React.FC<{ a: Announcement }> = ({ a }) => {
   if (participants.length) rows.push(['Participants', participants.join(', ')]);
 
   return (
-    <div className="rounded-[--radius-card] border border-line bg-surface-2 p-3">
+    <div className="rounded-(--radius-card) border border-line bg-surface-2 p-3">
       <div className="flex items-center gap-1.5 mb-2">
         <CalendarClock className="w-3.5 h-3.5 text-nib-gold-600" />
         <h4 className="text-[12px] font-bold uppercase tracking-wide text-ink-3">

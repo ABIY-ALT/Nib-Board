@@ -1,21 +1,49 @@
 import { requireUser, HttpError } from '@/lib/auth';
 import { assertMatterAccess } from '@/lib/authz';
 import { handle, badRequest } from '@/lib/handler';
-import { transaction } from '@/lib/prisma';
+import { prisma, transaction } from '@/lib/prisma';
 import { appendAudit, generateId } from '@/lib/repo';
 import { assertSameOrigin } from '@/lib/security';
 import {
-  ALLOWED_UPLOAD_TYPES,
   MAX_UPLOAD_BYTES,
+  assertUploadLength,
   formatBytes,
+  isAllowedUploadType,
   putObject,
 } from '@/lib/storage';
-import { DocumentCategory } from '@/lib/types';
+import { DocumentCategory, User } from '@/lib/types';
+import type { Matter } from '@/generated/prisma/client';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 type Params = { params: Promise<{ id: string }> };
+
+/**
+ * Being able to see a matter is not the same as being able to add to its
+ * record: only parties accountable for it may attach evidence, and a closed
+ * matter's document set is final.
+ */
+function assertMayAttach(user: User, matter: Matter): void {
+  if (matter.status === 'Closed') {
+    throw new HttpError(409, 'This BOD matter is closed; its document set is final.');
+  }
+
+  const isAccountableParty =
+    user.role === 'BOARD_SECRETARIAT' ||
+    user.role === 'ADMIN' ||
+    matter.currentOwnerId === user.id ||
+    matter.responsibleDirectorId === user.id ||
+    matter.responsibleChiefId === user.id ||
+    matter.responsibleDeputyChiefId === user.id;
+
+  if (!isAccountableParty) {
+    throw new HttpError(
+      403,
+      'Access Denied: only the current owner or a responsible party may attach documents to this matter.'
+    );
+  }
+}
 
 const VALID_CATEGORIES: DocumentCategory[] = [
   'ORIGINAL_BOARD_DOC',
@@ -45,6 +73,15 @@ export async function POST(req: Request, { params }: Params) {
     const { id } = await params;
     await assertMatterAccess(user, id);
 
+    // Authorized before the upload is parsed or anything reaches the store. The
+    // check used to run only inside the transaction, after the bytes had been
+    // written, so anyone who could merely see a matter could fill the archive.
+    // It is repeated under the transaction below, against the committed row.
+    const current = await prisma.matter.findUnique({ where: { id } });
+    if (!current) throw new HttpError(404, 'BOD Matter not found');
+    assertMayAttach(user, current);
+
+    assertUploadLength(req);
     if (!req.headers.get('content-type')?.includes('multipart/form-data')) {
       badRequest('Attach the document as multipart/form-data with a "file" part.');
     }
@@ -73,7 +110,7 @@ export async function POST(req: Request, { params }: Params) {
     }
 
     const contentType = (file as File).type || 'application/octet-stream';
-    if (!ALLOWED_UPLOAD_TYPES[contentType]) {
+    if (!isAllowedUploadType(contentType)) {
       badRequest(
         `Files of type '${contentType}' cannot be attached. Accepted: PDF, Word, Excel, PowerPoint, text, CSV, PNG and JPEG.`
       );
@@ -98,25 +135,7 @@ export async function POST(req: Request, { params }: Params) {
     return transaction(async (tx) => {
       const matter = await tx.matter.findUnique({ where: { id } });
       if (!matter) throw new HttpError(404, 'BOD Matter not found');
-
-      if (matter.status === 'Closed') {
-        throw new HttpError(409, 'This BOD matter is closed; its document set is final.');
-      }
-
-      const isAccountableParty =
-        user.role === 'BOARD_SECRETARIAT' ||
-        user.role === 'ADMIN' ||
-        matter.currentOwnerId === user.id ||
-        matter.responsibleDirectorId === user.id ||
-        matter.responsibleChiefId === user.id ||
-        matter.responsibleDeputyChiefId === user.id;
-
-      if (!isAccountableParty) {
-        throw new HttpError(
-          403,
-          'Access Denied: only the current owner or a responsible party may attach documents to this matter.'
-        );
-      }
+      assertMayAttach(user, matter);
 
       const docId = generateId('doc');
       await tx.document.create({

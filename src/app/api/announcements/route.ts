@@ -6,6 +6,7 @@ import { assertPermission, getPermissions } from '@/lib/permissions.server';
 import { PERMISSIONS, hasAnyPermission } from '@/lib/permissions';
 import {
   ANNOUNCEMENT_INCLUDE,
+  assertRelatedMatterInScope,
   auditAnnouncement,
   dispatchAnnouncementEmails,
   feedWhere,
@@ -121,6 +122,7 @@ export async function POST(req: Request) {
     }
 
     const input = parseAnnouncementInput(body);
+    await assertRelatedMatterInScope(user, input.relatedMatterId);
     const now = new Date();
 
     const result = await transaction(async (tx) => {

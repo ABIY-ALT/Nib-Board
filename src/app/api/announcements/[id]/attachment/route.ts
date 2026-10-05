@@ -7,10 +7,12 @@ import { PERMISSIONS, hasAnyPermission, hasPermission } from '@/lib/permissions'
 import { ANNOUNCEMENT_INCLUDE, auditAnnouncement, inAudience } from '@/lib/announcements.server';
 import { assertSameOrigin } from '@/lib/security';
 import {
-  ALLOWED_UPLOAD_TYPES,
   MAX_UPLOAD_BYTES,
+  assertUploadLength,
+  attachmentDisposition,
   formatBytes,
   getObject,
+  isAllowedUploadType,
   putObject,
 } from '@/lib/storage';
 
@@ -58,6 +60,7 @@ export async function POST(req: Request, { params }: Params) {
       throw new HttpError(409, 'This announcement has been withdrawn.');
     }
 
+    assertUploadLength(req);
     if (!req.headers.get('content-type')?.includes('multipart/form-data')) {
       badRequest('Attach the file as multipart/form-data with a "file" part.');
     }
@@ -76,7 +79,7 @@ export async function POST(req: Request, { params }: Params) {
     const name = String(form.get('name') ?? '').trim() || upload.name;
     const contentType = upload.type || 'application/octet-stream';
 
-    if (!ALLOWED_UPLOAD_TYPES[contentType]) {
+    if (!isAllowedUploadType(contentType)) {
       badRequest(
         `Files of type '${contentType}' cannot be attached. Accepted: PDF, Word, Excel, PowerPoint, text, CSV, PNG and JPEG.`
       );
@@ -167,7 +170,10 @@ export async function GET(_req: Request, { params }: Params) {
         'Content-Length': String(bytes.byteLength),
         // `attachment` rather than `inline`: an uploaded file is never rendered
         // in the bank's own origin, whatever its declared type.
-        'Content-Disposition': `attachment; filename="${encodeURIComponent(row.attachmentName ?? 'attachment')}"`,
+        'Content-Disposition': attachmentDisposition(
+          row.attachmentName ?? 'attachment',
+          row.attachmentType ?? 'application/octet-stream'
+        ),
         ETag: `"${row.attachmentSha}"`,
         'Cache-Control': 'private, no-store',
         'X-Content-Type-Options': 'nosniff',

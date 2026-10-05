@@ -41,6 +41,116 @@ export const ALLOWED_UPLOAD_TYPES: Record<string, string> = {
   'image/jpeg': '.jpg',
 };
 
+/**
+ * Whether a declared type is on the allow-list.
+ *
+ * An own-property check, not `ALLOWED_UPLOAD_TYPES[type]`: the type is
+ * whatever the client wrote on the multipart part, and a plain lookup of
+ * "constructor" or "__proto__" finds an inherited member and passes.
+ */
+export function isAllowedUploadType(contentType: string): boolean {
+  return Object.hasOwn(ALLOWED_UPLOAD_TYPES, contentType);
+}
+
+// ------------------------------------------------------------ content checks
+
+const startsWith = (bytes: Buffer, signature: readonly number[]) =>
+  bytes.length >= signature.length && signature.every((b, i) => bytes[i] === b);
+
+const isZip = (b: Buffer) => startsWith(b, [0x50, 0x4b, 0x03, 0x04]); // OOXML containers
+const isOle2 = (b: Buffer) => startsWith(b, [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]); // legacy Office
+const isRtf = (b: Buffer) => b.subarray(0, 5).toString('latin1') === '{\\rtf';
+
+/**
+ * What the bytes of each accepted type must look like.
+ *
+ * The declared type is whatever the browser — or a script — chose to send, so
+ * on its own it lets HTML, script or an executable through as "a PNG" or "a
+ * PDF". Legacy Excel, plain text and CSV have no entry: there is no single
+ * signature for them (Excel's own ".xls" is often an HTML or XML export), and
+ * the forced download extension below keeps them inert.
+ */
+const CONTENT_SIGNATURES: Record<string, Array<(b: Buffer) => boolean>> = {
+  // The PDF header may legally be preceded by up to 1 KB of junk.
+  'application/pdf': [(b) => b.subarray(0, 1024).includes('%PDF-')],
+  'image/png': [(b) => startsWith(b, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])],
+  'image/jpeg': [(b) => startsWith(b, [0xff, 0xd8, 0xff])],
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': [isZip],
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': [isZip],
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': [isZip],
+  // Word saves RTF under .doc, and a renamed .docx still opens in Word.
+  'application/msword': [isOle2, isZip, isRtf],
+  'application/vnd.ms-powerpoint': [isOle2, isZip],
+};
+
+/** A Windows PE or ELF executable, whatever type it was declared as. */
+function isExecutable(bytes: Buffer): boolean {
+  if (startsWith(bytes, [0x7f, 0x45, 0x4c, 0x46])) return true;
+  if (!startsWith(bytes, [0x4d, 0x5a]) || bytes.length < 0x40) return false;
+  // "MZ" alone could begin a text file; a PE image also carries "PE\0\0" at
+  // the offset stored at 0x3C.
+  const peOffset = bytes.readUInt32LE(0x3c);
+  return peOffset + 4 <= bytes.length && bytes.readUInt32BE(peOffset) === 0x50450000;
+}
+
+function assertContentMatchesType(bytes: Buffer, contentType: string): void {
+  const signatures = Object.hasOwn(CONTENT_SIGNATURES, contentType)
+    ? CONTENT_SIGNATURES[contentType]
+    : undefined;
+  if (isExecutable(bytes) || (signatures && !signatures.some((test) => test(bytes)))) {
+    throw new HttpError(
+      400,
+      `The file's contents do not match its type (${contentType}). Upload the original document rather than a renamed file.`
+    );
+  }
+}
+
+/**
+ * The Content-Disposition for a stored file being handed back.
+ *
+ * The display name is whatever the uploader typed, so "update.exe" stored as a
+ * PNG used to download as `update.exe` from the bank's own portal. The name is
+ * kept, but its extension is forced to the one its verified type maps to, and
+ * the RFC 6266 `filename*` form carries non-ASCII names intact.
+ */
+export function attachmentDisposition(name: string, contentType: string): string {
+  const extension = isAllowedUploadType(contentType) ? ALLOWED_UPLOAD_TYPES[contentType] : '.bin';
+  const base = name.replace(/[\u0000-\u001f\u007f"\\/:*?<>|]+/g, '_').trim() || 'document';
+  const lower = base.toLowerCase();
+  const hasExtension = lower.endsWith(extension) || (extension === '.jpg' && lower.endsWith('.jpeg'));
+  const filename = hasExtension ? base : `${base}${extension}`;
+
+  const ascii = filename.replace(/[^\x20-\x7e]/g, '_');
+  const encoded = encodeURIComponent(filename).replace(
+    /['()*]/g,
+    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`
+  );
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`;
+}
+
+/** Boundaries, part headers and the small text fields around the file itself. */
+const MULTIPART_OVERHEAD_BYTES = 1024 * 1024;
+
+/**
+ * Refuses an upload by its declared length, before `req.formData()` parses it.
+ *
+ * `req.formData()` takes the whole body into memory, so checking the file's
+ * size afterwards meant an arbitrarily large request had already been buffered
+ * by the time it was refused. src/proxy.ts makes the same check first; this one
+ * still holds if the proxy is ever not picked up.
+ */
+export function assertUploadLength(req: Request): void {
+  const declared = Number(req.headers.get('content-length'));
+  if (Number.isFinite(declared) && declared > MAX_UPLOAD_BYTES + MULTIPART_OVERHEAD_BYTES) {
+    throw new HttpError(
+      413,
+      `The file is larger than the ${Math.round(MAX_UPLOAD_BYTES / 1024 / 1024)} MB limit.`
+    );
+  }
+}
+
+// -------------------------------------------------------------------- store
+
 let cachedRoot: string | null = null;
 
 /**
@@ -122,8 +232,7 @@ const exists = async (p: string) =>
  * identical digest are the same object, so re-uploading is idempotent.
  */
 export async function putObject(bytes: Buffer, contentType: string): Promise<StoredObject> {
-  const extension = ALLOWED_UPLOAD_TYPES[contentType];
-  if (!extension) {
+  if (!isAllowedUploadType(contentType)) {
     throw new HttpError(400, `Files of type '${contentType}' cannot be attached to a Board matter.`);
   }
   if (bytes.byteLength === 0) {
@@ -135,6 +244,7 @@ export async function putObject(bytes: Buffer, contentType: string): Promise<Sto
       `The file is larger than the ${Math.round(MAX_UPLOAD_BYTES / 1024 / 1024)} MB limit.`
     );
   }
+  assertContentMatchesType(bytes, contentType);
 
   const sha256 = createHash('sha256').update(bytes).digest('hex');
   const storageKey = path.join(
@@ -174,10 +284,10 @@ export async function getObject(storageKey: string, expectedSha256: string): Pro
   try {
     bytes = await readFile(/*turbopackIgnore: true*/ primaryPath);
   } catch {
-    // Fallback: try extensionless path if storageKey had an extension, or vice-versa
-    const root = storageRoot();
+    // Fallback: try extensionless path if storageKey had an extension, or vice-versa.
+    // Through objectPath, so the alternative is held to the same traversal check.
     const cleanKey = storageKey.replace(/\.[^/.]+$/, '');
-    const altPath = path.resolve(/*turbopackIgnore: true*/ root, cleanKey);
+    const altPath = objectPath(cleanKey);
     try {
       bytes = await readFile(/*turbopackIgnore: true*/ altPath);
     } catch {

@@ -101,7 +101,7 @@ export const RouteMatterModal: React.FC<RouteMatterModalProps> = ({
 
   return (
     <div className={modalOverlayClass}>
-      <div className="bg-surface rounded-[--radius-card] shadow-overlay border border-line w-full max-w-xl overflow-hidden">
+      <div className="bg-surface rounded-(--radius-card) shadow-overlay border border-line w-full max-w-xl overflow-hidden">
         
         {/* Header */}
         <div className="bg-nib-brown-800 text-nib-gold-100 px-6 py-4 flex items-center justify-between border-b border-[#1f426b]">
@@ -138,7 +138,7 @@ export const RouteMatterModal: React.FC<RouteMatterModalProps> = ({
             </label>
             <div className="grid grid-cols-2 gap-3">
               <label
-                className={`p-3 rounded-[--radius-card] border cursor-pointer transition flex flex-col justify-between ${
+                className={`p-3 rounded-(--radius-card) border cursor-pointer transition flex flex-col justify-between ${
  actionType === 'FORWARD'
                     ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/30'
                     : 'border-line bg-surface-2'
@@ -161,7 +161,7 @@ export const RouteMatterModal: React.FC<RouteMatterModalProps> = ({
               </label>
 
               <label
-                className={`p-3 rounded-[--radius-card] border cursor-pointer transition flex flex-col justify-between ${
+                className={`p-3 rounded-(--radius-card) border cursor-pointer transition flex flex-col justify-between ${
  actionType === 'ASSIGN'
                     ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30'
                     : 'border-line bg-surface-2'

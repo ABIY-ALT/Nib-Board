@@ -6,6 +6,7 @@ import { AuthProvider, useAuth, useAuthenticatedUser } from '@/context/AuthConte
 import { ThemeProvider } from '@/context/ThemeContext';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { TopHeader } from '@/components/layout/TopHeader';
+import { GroundRelief } from '@/components/layout/HexRelief';
 import { Dashboard } from '@/components/dashboard/Dashboard';
 import { MattersView, EscalatedView } from '@/components/governance/MattersView';
 import { OverviewView, SlaView } from '@/components/monitoring/MonitoringViews';
@@ -223,16 +224,29 @@ const SignedIn: React.FC<SignedInProps> = ({
         onCloseMobile={() => setMobileNav(false)}
       />
 
-      <div className="flex-1 flex flex-col min-w-0">
-        <TopHeader
-          view={view}
-          onOpenMobileNav={() => setMobileNav(true)}
-          onSelectMatter={openMatter}
-          onNavigate={navigate}
-        />
+      {/* Deliberately not a stacking context: dialogs rendered inside the page
+          must reach the root one to cover the rail. The ground goes first, and
+          the header band and the page after it are positioned, so both paint
+          over it. */}
+      <div className="relative flex-1 flex flex-col min-w-0 overflow-hidden">
+        <GroundRelief />
 
-        <main className="flex-1 overflow-y-auto">
-          <div className="max-w-[100rem] mx-auto p-4 sm:p-6">
+        {/* Outside the scroll container, so the page scrolls beneath the header
+            rather than taking it along. Positioned so the header's menus and
+            shadow paint over the page below. */}
+        <div className="no-print relative z-30 shrink-0 px-4 pt-3 sm:px-6 sm:pt-4">
+          <TopHeader
+            onOpenMobileNav={() => setMobileNav(true)}
+            onSelectMatter={openMatter}
+            onNavigate={navigate}
+          />
+        </div>
+
+        {/* Transparent, so the ground shows through. The page fills the column
+            rather than centring in a capped width — centring split any spare
+            width either side, so the gap to the rail grew on a wide screen. */}
+        <main className="relative flex-1 overflow-y-auto">
+          <div className="page-enter w-full px-4 py-6 sm:px-6 lg:py-8">
             {isLoading && matters.length === 0 ? (
               <div className="flex items-center justify-center gap-2 py-20 text-ink-3">
                 <Loader2 className="w-4 h-4 animate-spin text-nib-gold-600" />

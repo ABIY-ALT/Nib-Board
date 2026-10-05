@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireUser, HttpError } from '@/lib/auth';
 import { assertMatterAccess } from '@/lib/authz';
 import { prisma } from '@/lib/prisma';
-import { getObject } from '@/lib/storage';
+import { attachmentDisposition, getObject } from '@/lib/storage';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -58,7 +58,7 @@ export async function GET(_req: Request, { params }: Params) {
         'Content-Length': String(bytes.byteLength),
         // `attachment` rather than `inline`: an uploaded file is never rendered
         // in the bank's own origin, whatever its declared type.
-        'Content-Disposition': `attachment; filename="${encodeURIComponent(doc.name)}"`,
+        'Content-Disposition': attachmentDisposition(doc.name, doc.fileType),
         // The digest is the identity of the content, so it is an exact ETag.
         ETag: `"${doc.sha256}"`,
         'Cache-Control': 'private, no-store',

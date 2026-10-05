@@ -92,8 +92,8 @@ export function DataTable<T>({
                     scope="col"
                     aria-sort={on ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined}
                     className={cn(
-                      'text-left font-semibold text-[11px] uppercase tracking-wide text-ink-3',
-                      'px-3 py-2 whitespace-nowrap',
+                      'text-left font-bold text-[10px] uppercase tracking-[0.12em] text-ink-3',
+                      'px-4 py-3 whitespace-nowrap',
                       c.secondary && 'hidden lg:table-cell',
                       c.headerClassName
                     )}
@@ -142,7 +142,7 @@ export function DataTable<T>({
                   }
                   className={cn(
                     'transition-colors',
-                    onRowClick && 'cursor-pointer hover:bg-nib-gold-100/40 dark:hover:bg-surface-2',
+                    onRowClick && 'cursor-pointer hover:bg-nib-gold-100/25 dark:hover:bg-surface-2/70',
                     accent === 'late' && 'border-l-2 border-l-st-late',
                     accent === 'review' && 'border-l-2 border-l-st-review'
                   )}
@@ -151,7 +151,7 @@ export function DataTable<T>({
                     <td
                       key={c.key}
                       className={cn(
-                        'px-3 py-2.5 text-[13px] text-ink align-middle',
+                        'px-4 py-3.5 text-[13px] text-ink align-middle',
                         c.secondary && 'hidden lg:table-cell',
                         c.className
                       )}
@@ -193,7 +193,7 @@ export const Pagination: React.FC<{
   return (
     <nav
       aria-label="Pagination"
-      className="flex items-center justify-between gap-3 px-3 py-2.5 border-t border-line"
+      className="flex items-center justify-between gap-3 px-4 py-3 border-t border-line"
     >
       <p className="text-[12px] text-ink-3 tabular">
         Showing <span className="font-semibold text-ink-2">{from}</span>–
@@ -302,7 +302,7 @@ export const FilterBar: React.FC<{
           <div key={f.id} className="min-w-[140px]">
             <label
               htmlFor={`filter-${f.id}`}
-              className="block text-[11px] font-semibold text-ink-3 mb-1"
+              className="block text-[11px] font-bold uppercase tracking-wider text-ink-3 mb-1.5"
             >
               {f.label}
             </label>
@@ -323,7 +323,7 @@ export const FilterBar: React.FC<{
 
         {dateRange && (
           <div>
-            <span className="block text-[11px] font-semibold text-ink-3 mb-1">
+            <span className="block text-[11px] font-bold uppercase tracking-wider text-ink-3 mb-1.5">
               {dateRange.label}
             </span>
             <div className="flex items-center gap-1.5">

@@ -316,7 +316,7 @@ export const AnnouncementsView: React.FC<Props> = ({ onOpenMatter }) => {
       />
 
       {notice && (
-        <div className="mb-4 flex items-start gap-2 rounded-[--radius-control] border border-line bg-surface-2 px-3 py-2">
+        <div className="mb-4 flex items-start gap-2 rounded-(--radius-control) border border-line bg-surface-2 px-3 py-2">
           <CheckCircle2 className="w-4 h-4 text-st-done shrink-0 mt-0.5" />
           <p className="text-[12px] text-ink-2">{notice}</p>
         </div>

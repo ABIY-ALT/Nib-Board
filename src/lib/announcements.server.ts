@@ -2,6 +2,7 @@ import { prisma, type Db } from './prisma';
 import { HttpError } from './auth';
 import { PERMISSIONS, hasPermission } from './permissions';
 import { notify } from './repo';
+import { canAccessMatter } from './authz';
 import { sendAnnouncementEmail, sendBestEffort } from './email';
 import { appOrigin, clientIp, recordAuthEvent, userAgent } from './security';
 import { formatBytes } from './storage';
@@ -336,6 +337,38 @@ const stringList = (v: unknown): string[] =>
   Array.isArray(v) ? [...new Set(v.filter((x): x is string => typeof x === 'string' && x.trim() !== '').map((x) => x.trim()))] : [];
 
 /**
+ * A meeting link becomes a clickable `href` in every recipient's browser, so
+ * its scheme is allow-listed to web addresses. A link with no scheme at all is
+ * left alone, as it always was. Whitespace and control characters are refused
+ * outright: browsers strip them from URLs, which is how "java\nscript:" slips
+ * past a naive scheme check.
+ */
+function meetingLink(v: unknown): string | null {
+  const link = optional(v);
+  if (!link) return null;
+  const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(link)?.[1]?.toLowerCase();
+  if (/[\s\u0000-\u001f\u007f]/.test(link) || (scheme !== undefined && scheme !== 'http' && scheme !== 'https')) {
+    throw new HttpError(400, 'The meeting link must be a web address beginning with https:// or http://.');
+  }
+  return link;
+}
+
+/**
+ * An announcement may point at a Board matter, and its recipients are shown
+ * that matter's title. The author must be able to open the matter themselves:
+ * otherwise anyone allowed to draft an announcement could read the title of
+ * any matter in the bank by guessing its sequential id.
+ */
+export async function assertRelatedMatterInScope(user: User, matterId: string | null): Promise<void> {
+  if (matterId && !(await canAccessMatter(user, matterId))) {
+    throw new HttpError(
+      403,
+      'Access Denied: an announcement can only refer to a Board matter within your organizational scope.'
+    );
+  }
+}
+
+/**
  * Validates and normalises a submitted announcement.
  *
  * The meeting fields are cleared for every type but MEETING rather than
@@ -415,7 +448,7 @@ export function parseAnnouncementInput(body: Record<string, unknown>): Announcem
     meetingDate,
     meetingTime: isMeeting ? optional(body.meetingTime) : null,
     location: isMeeting ? optional(body.location) : null,
-    meetingLink: isMeeting ? optional(body.meetingLink) : null,
+    meetingLink: isMeeting ? meetingLink(body.meetingLink) : null,
     agenda: isMeeting ? optional(body.agenda) : null,
     participants: isMeeting ? stringList(body.participants) : [],
     relatedMatterId: optional(body.relatedMatterId),
@@ -510,8 +543,13 @@ export async function publishAnnouncement(
   // later either, so a scheduled announcement arrives in the feed silently.
   const publishAt = row.publishAt && row.publishAt > now ? row.publishAt : now;
 
-  await db.announcement.update({
-    where: { id: row.id },
+  // Conditional on still being a draft, so of two concurrent publish requests
+  // exactly one wins: the other blocks on the row, then matches nothing once
+  // the winner commits. The status check the caller made before opening the
+  // transaction cannot do that, and every loser used to raise its own round
+  // of notifications and emails.
+  const { count } = await db.announcement.updateMany({
+    where: { id: row.id, status: 'DRAFT' },
     data: {
       status: 'PUBLISHED',
       publishAt,
@@ -520,6 +558,9 @@ export async function publishAnnouncement(
       updatedAt: now,
     },
   });
+  if (count === 0) {
+    throw new HttpError(409, 'This announcement has already been published or withdrawn.');
+  }
 
   if (publishAt <= now) {
     const text = notificationText(row);

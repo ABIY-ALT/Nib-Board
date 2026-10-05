@@ -14,22 +14,23 @@ type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type ButtonSize = 'sm' | 'md';
 
 const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
-  // Gold is the single call-to-action colour across the application.
+  // Gold is the single call-to-action colour across the application, lifted by
+  // the kit's gold glow rather than a grey shadow.
   primary:
-    'bg-nib-gold-600 text-nib-brown-900 hover:bg-nib-gold-500 active:bg-nib-gold-700 ' +
-    'disabled:bg-surface-3 disabled:text-ink-3 font-semibold shadow-card',
+    'bg-nib-gold-500 text-nib-brown-900 shadow-brand hover:bg-nib-gold-400 hover:shadow-brand-raised',
   secondary:
-    'bg-surface text-ink border border-line-strong hover:bg-surface-2 ' +
-    'disabled:text-ink-3 disabled:hover:bg-surface font-medium',
-  ghost: 'text-ink-2 hover:bg-surface-2 hover:text-ink font-medium',
-  // Restrained: outlined rather than a solid block of red.
+    'bg-surface text-ink border border-line-strong shadow-card ' +
+    'hover:border-nib-gold-500/50 hover:bg-surface-2',
+  ghost: 'text-ink-2 hover:bg-surface-2 hover:text-ink',
+  // Restrained: tinted rather than a solid block of red, so it can sit beside a
+  // primary action without competing with it.
   danger:
-    'bg-surface text-st-late border border-st-late/40 hover:bg-st-late-bg font-medium',
+    'bg-st-late-bg text-st-late border border-st-late/25 hover:border-st-late/40 hover:bg-st-late/15',
 };
 
 const BUTTON_SIZES: Record<ButtonSize, string> = {
-  sm: 'h-8 px-3 text-[13px] gap-1.5',
-  md: 'h-9 px-4 text-[13px] gap-2',
+  sm: 'h-8 px-3 text-xs gap-1.5',
+  md: 'h-10 px-4 text-[13px] gap-2',
 };
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -53,8 +54,13 @@ export const Button: React.FC<ButtonProps> = ({
     {...rest}
     disabled={disabled || loading}
     className={cn(
-      'inline-flex items-center justify-center rounded-[--radius-control] transition-colors',
-      'disabled:cursor-not-allowed whitespace-nowrap',
+      'inline-flex items-center justify-center rounded-(--radius-control) whitespace-nowrap select-none',
+      'font-semibold tracking-tight active:scale-[0.98]',
+      'transition-[background-color,border-color,box-shadow,transform] duration-150',
+      // Not `pointer-events-none`, as the kit has it: a disabled button can carry
+      // a tooltip saying why, and inside a clickable table row a click must stop
+      // at the button rather than fall through and open the row.
+      'disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100',
       BUTTON_VARIANTS[variant],
       BUTTON_SIZES[size],
       className
@@ -67,6 +73,11 @@ export const Button: React.FC<ButtonProps> = ({
 
 /* ───────────────────────────────────────────────────────── Card */
 
+/**
+ * Cards are borderless in the light theme: white on the neutral ground, lifted
+ * by `shadow-card` alone. The dark theme keeps a hairline, because a shadow on a
+ * near-black ground does not read as an edge.
+ */
 export const Card: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   className,
   children,
@@ -75,7 +86,7 @@ export const Card: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   <div
     {...rest}
     className={cn(
-      'bg-surface border border-line rounded-[--radius-card] shadow-card',
+      'bg-surface text-ink border border-transparent dark:border-line rounded-(--radius-card) shadow-card',
       className
     )}
   >
@@ -156,7 +167,7 @@ export const StatusBadge: React.FC<{ status: string; className?: string }> = ({
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border',
+        'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border',
         'text-[11px] font-semibold whitespace-nowrap',
         TONE_CLASS[tone],
         className
@@ -181,7 +192,7 @@ export const PriorityBadge: React.FC<{ priority: string; className?: string }> =
 }) => (
   <span
     className={cn(
-      'inline-flex items-center px-1.5 py-0.5 rounded border text-[11px] font-semibold',
+      'inline-flex items-center px-2 py-0.5 rounded-full border text-[11px] font-semibold whitespace-nowrap',
       PRIORITY_CLASS[priority] ?? PRIORITY_CLASS.Low,
       className
     )}
@@ -194,9 +205,9 @@ export const PriorityBadge: React.FC<{ priority: string; className?: string }> =
 export const TypeChip: React.FC<{ type: string; className?: string }> = ({ type, className }) => (
   <span
     className={cn(
-      'inline-flex items-center px-1.5 py-0.5 rounded border text-[11px] font-medium',
-      'bg-nib-gold-100 text-nib-brown-700 border-nib-gold-200',
-      'dark:bg-nib-brown-700/25 dark:text-nib-gold-200 dark:border-nib-brown-600/40',
+      'inline-flex items-center px-2 py-0.5 rounded-full border text-[11px] font-semibold whitespace-nowrap',
+      'bg-nib-gold-100 text-nib-gold-800 border-nib-gold-500/35',
+      'dark:bg-nib-gold-500/15 dark:text-nib-gold-400',
       className
     )}
   >
@@ -250,13 +261,19 @@ export const PageHeader: React.FC<{
   actions?: React.ReactNode;
   meta?: React.ReactNode;
 }> = ({ title, description, actions, meta }) => (
-  <header className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
+  <header className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-6">
     <div className="min-w-0">
-      <h1 className="text-[24px] leading-tight font-bold text-ink tracking-tight">{title}</h1>
-      {description && <p className="text-[13px] text-ink-2 mt-1 max-w-2xl">{description}</p>}
+      <h1 className="text-[22px] sm:text-[26px] leading-tight font-bold text-ink tracking-tight">
+        {title}
+      </h1>
+      {description && (
+        <p className="text-[13px] sm:text-sm leading-relaxed text-ink-3 mt-1.5 max-w-3xl">
+          {description}
+        </p>
+      )}
       {meta && <div className="mt-2">{meta}</div>}
     </div>
-    {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
+    {actions && <div className="flex flex-wrap items-center gap-2 shrink-0">{actions}</div>}
   </header>
 );
 
@@ -413,7 +430,7 @@ export const Field: React.FC<{
   <div>
     <label
       htmlFor={htmlFor}
-      className="block text-[12px] font-semibold text-ink-2 mb-1"
+      className="block text-[11px] font-bold uppercase tracking-wider text-ink-3 mb-1.5"
     >
       {label}
       {required && (
@@ -445,11 +462,14 @@ export const modalOverlayClass =
   'fixed inset-0 z-50 overflow-y-auto bg-scrim backdrop-blur-sm ' +
   'flex items-start sm:items-center justify-center p-4 sm:py-10';
 
+/** Text entry, matched to the 40px button so the two sit on one line. */
 export const inputClass = cn(
-  'w-full h-9 px-3 rounded-[--radius-control] bg-surface text-ink text-[13px]',
-  'border border-line-strong placeholder:text-ink-3',
-  'focus:outline-none focus:border-nib-gold-500 focus:ring-2 focus:ring-nib-gold-500/20',
-  'disabled:bg-surface-2 disabled:text-ink-3 transition-colors'
+  'w-full h-10 px-3.5 rounded-(--radius-control) bg-surface text-ink text-[13px] shadow-card',
+  'border border-line placeholder:text-ink-3/70 hover:border-line-strong',
+  'focus:outline-none focus:border-nib-gold-500 focus:ring-2 focus:ring-nib-gold-500/25',
+  'aria-[invalid=true]:border-st-late aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-st-late/20',
+  'disabled:cursor-not-allowed disabled:bg-surface-2 disabled:opacity-60',
+  'transition-[border-color,box-shadow,background-color] duration-150'
 );
 
 export const textareaClass = cn(inputClass, 'h-auto py-2 min-h-[80px] leading-relaxed');
@@ -492,7 +512,7 @@ export const FilePicker: React.FC<{
       <label
         htmlFor={id}
         className={cn(
-          'flex items-center gap-3 w-full rounded-[--radius-control] border border-dashed px-3 py-3',
+          'flex items-center gap-3 w-full rounded-(--radius-control) border border-dashed px-3 py-3',
           'transition-colors cursor-pointer',
           disabled && 'opacity-60 cursor-not-allowed',
           file

@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/primitives';
 import { Column, DataTable, FilterBar } from '@/components/ui/DataTable';
 import { BODMatter } from '@/lib/types';
+import { csvCell } from '@/lib/audit-csv';
 import { ViewId, navItem } from '@/lib/navigation';
 import {
   AGING_BUCKETS,
@@ -417,7 +418,8 @@ function exportCsv(rows: BODMatter[], view: string) {
     'Reference', 'Resolution Number', 'Type', 'Title', 'Board Date', 'Priority',
     'Current Owner', 'Department', 'Stage', 'Due Date', 'Days Open', 'Status',
   ];
-  const escape = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  // csvCell also defuses a leading = + - @, which Excel would run as a formula.
+  const escape = (v: unknown) => csvCell(String(v ?? ''));
   const body = rows.map((m) =>
     [
       m.id, m.resolutionNumber, m.matterType, m.title, m.boardDecisionDate, m.priority,

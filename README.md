@@ -47,25 +47,40 @@ add it to the TypeScript union in `lib/types.ts` **and** to the constraint.
 
 ## Design system
 
-NIB institutional identity: brown navigation, gold as the single accent, warm-white working
-surface. Tokens live in `app/globals.css` — brand scale first, then semantic roles
-(`surface`, `ink`, `line`, `sidebar`, status hues). Components reference the semantic roles
-only, so light and dark stay in step and no page invents its own values.
+The NIB design kit, shared with NIB Property Valuation: a light navigation rail over a
+hexagon relief, gold as the single accent, a near-white neutral working surface, and cards
+that lift on shadow rather than borders. The kit's two files are copied unchanged into
+`styles/nib/` and imported by `app/globals.css`, which adds only what is specific to this
+system (skeletons, the EPMO pennant). Components reference the semantic roles (`surface`,
+`ink`, `line`, `sidebar`, status hues) only, so light and dark stay in step and no page
+invents its own values.
+
+To take a newer kit, copy its `nib-tokens.css` and `nib-tailwind.css` over the files in
+`styles/nib/`, and its `textures/hex-relief.webp` to `public/textures/`. Do not edit the
+kit files in place; the next copy would silently undo the edit.
 
 | Token | Light | Role |
 | --- | --- | --- |
-| `app` | `#FCF8EF` | Application background |
-| `surface` | `#FFFFFF` | Cards, tables, forms, modals |
-| `sidebar` | `#4B2507` | Navigation rail |
-| `nib-gold-600` | `#B89334` | Primary actions, active navigation |
+| `app` | `#F6F6F3` | Application background |
+| `surface` | `#FFFFFF` | Cards, header, tables, forms, modals |
+| `sidebar` | `#FFFFFF` | Navigation rail, over the hexagon relief |
+| `nib-gold-500` | `#D89A16` | Primary actions, active navigation, collapse control |
 | `nib-gold-100` | `#F8E9C5` | Selected and informational backgrounds |
+
+Radii are read as `rounded-(--radius-card)` and `rounded-(--radius-control)`. The
+square-bracket form, `rounded-[--radius-card]`, is Tailwind v3 syntax: v4 compiles it to an
+invalid `border-radius` that browsers drop, leaving every surface square-cornered.
+
+Tailwind scans `src/` only (`source("../")` in `globals.css`). Scanning the whole project
+reached the skill junctions under `.claude/` and `.windsurf/`, which made webpack builds fail
+on any stylesheet change.
 
 Status colour is resolved in one map (`StatusBadge`), so a status can never render one
 colour on the dashboard and another in a table. Every badge carries a dot as well as a hue,
 so state is never communicated by colour alone.
 
 Dark mode is a deep warm charcoal rather than an inversion; gold stays an accent. Theme is
-Light / Dark / System, applied before first paint to avoid a flash.
+Light / Dark / System, chosen from the header and applied before first paint to avoid a flash.
 
 Shared components live in `components/ui`: `Button`, `Card`, `StatusBadge`, `PriorityBadge`,
 `SlaPill`, `DataTable`, `FilterBar`, `Pagination`, `Tabs`, `EmptyState`, `ErrorState`,
@@ -89,11 +104,11 @@ Every sidebar item is a projection of the scoped matter set, with two honest exc
 ```
 app/
   page.tsx            single authenticated workspace
-  globals.css         design tokens (brand + semantic, light/dark)
+  globals.css         imports the NIB design kit; system-specific utilities
   api/                20 route handlers — the whole server surface
 components/
   ui/                 design-system primitives and DataTable
-  layout/             Sidebar, TopHeader
+  layout/             Sidebar, TopHeader, HexRelief
   dashboard/          KPIs, pipeline, management attention
   governance/         matter list views
   monitoring/         overview, SLA & aging
@@ -107,6 +122,7 @@ lib/
   handler.ts          error → HTTP status mapping
   generated/prisma/   generated client — not checked in; `prisma generate` rebuilds it
 components/           UI (client components)
+styles/nib/           the NIB design kit, copied unchanged
 context/AuthContext   session state and data fetching
 prisma/
   schema.prisma       the source of truth for the database
@@ -294,7 +310,9 @@ stored, so they cannot go stale between requests.
 
 ## Transport and browser hardening
 
-`proxy.ts` applies to every response:
+`src/proxy.ts` applies to every response. It must sit beside `app/` — Next.js silently
+ignores a proxy at the project root when the app lives in `src/`, and `next build` lists
+"Proxy" in its output when it has been picked up:
 
 - **Content-Security-Policy** — nonce-based in production (`script-src 'self' 'nonce-…'
   'strict-dynamic'`, `object-src 'none'`, `frame-ancestors 'none'`). The root page is
@@ -310,18 +328,26 @@ stored, so they cannot go stale between requests.
 Set `ALLOWED_ORIGINS` (comma-separated) if the app is served behind a hostname the
 `Host` header does not reflect.
 
+Set `APP_URL` to the public origin (e.g. `https://nibboardtest.nibbank.com.et`); without it,
+links in invitation and reset emails are built from the request's `Host` header.
+
+The sign-in rate limiter reads the client address from the right of `X-Forwarded-For`,
+skipping `TRUSTED_PROXY_HOPS` entries appended by proxies you control (default `1`). The
+Node.js port must not be reachable except through that proxy, or the header can be forged.
+
 ## Before production
 
 1. **Documents are metadata only.** Names and categories are recorded; no file is stored
    or served. Real deployment needs authenticated binary storage with per-matter access
    checks on download.
-2. **Seeded officer accounts share one temporary password.** `npm run db:seed` prints it
-   and flags every officer account for forced change. Set `SEED_PASSWORD`, or provision real
-   accounts, before any environment that is not a local demo.
-3. **The administrator account is exempt from the forced change.** `admin@nibbank.et` is
-   seeded from `ADMIN_PASSWORD` with `must_change_password = FALSE`, because it is the
-   account used to recover the others. Set `ADMIN_PASSWORD` to a real secret — nothing
-   forces this one to be replaced, so it is only as good as the value you seed it with.
+2. **Seeded officer accounts share one temporary password.** `npm run db:seed` flags every
+   officer account for forced change. It uses `SEED_PASSWORD`, or generates a random one and
+   prints it once. The seed **truncates every table, audit logs included**, so it refuses to
+   run unless `ALLOW_SEED=true`; never set that against a database you need to keep.
+3. **The administrator account is exempt from the forced change.** `admin@nibbank.com.et` is
+   seeded from `ADMIN_PASSWORD` (or a generated value printed once) with
+   `must_change_password = FALSE`, because it is the account used to recover the others.
+   Nothing forces this one to be replaced, so rotate it after seeding.
 4. **The password policy is six characters.** Length only: no composition requirement, with
    the account's own name/email and a single repeated character still rejected
    (`src/lib/password-policy.ts`). Online guessing is held off by lockout and the
