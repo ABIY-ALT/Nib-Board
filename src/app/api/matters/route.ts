@@ -111,6 +111,15 @@ export async function POST(req: Request) {
         ? await getUser(tx, body.responsibleDeputyChiefId)
         : null;
 
+      // The responsible fields grant visibility and accountability, so — as for
+      // the Director above — each must name an active holder of that role.
+      if (body.responsibleChiefId && chief?.role !== 'CHIEF') {
+        throw new HttpError(400, 'responsibleChiefId must reference a Chief.');
+      }
+      if (body.responsibleDeputyChiefId && deputy?.role !== 'DEPUTY_CHIEF') {
+        throw new HttpError(400, 'responsibleDeputyChiefId must reference a Deputy Chief.');
+      }
+
       const ceo = await firstUserWithRole(tx, 'CEO');
       if (!ceo) {
         throw new HttpError(500, 'No active CEO is configured to receive Board matters.');

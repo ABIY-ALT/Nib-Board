@@ -10,6 +10,8 @@ export const dynamic = 'force-dynamic';
 
 type Params = { params: Promise<{ id: string }> };
 
+const ACCEPTABLE_STATUSES: MatterStatus[] = ['Received', 'Under Review', 'Assigned'];
+
 /**
  * The recipient confirms they are responsible (spec §5). Until this happens a
  * matter has merely arrived; accepting is what settles accountability.
@@ -40,6 +42,16 @@ export async function POST(req: Request, { params }: Params) {
       }
       if (matter.status === 'In Progress') {
         throw new HttpError(409, 'You have already accepted ownership of this matter.');
+      }
+      // Accepting answers an assignment, so it is allowed only while the matter is
+      // waiting to be taken up — the statuses the matter screen offers it in.
+      // From a later stage it would silently discard that stage: an unanswered
+      // clarification, a submitted report, or a confirmation awaiting closure.
+      if (!ACCEPTABLE_STATUSES.includes(matter.status as MatterStatus)) {
+        throw new HttpError(
+          409,
+          `Ownership can only be accepted while the matter is awaiting its owner; it is currently "${matter.status}".`
+        );
       }
 
       const previousStatus = matter.status as MatterStatus;

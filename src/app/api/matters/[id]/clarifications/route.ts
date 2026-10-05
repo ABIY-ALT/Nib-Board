@@ -1,5 +1,5 @@
 import { requireUser, HttpError } from '@/lib/auth';
-import { assertMatterAccess, filterNotifiableUsers } from '@/lib/authz';
+import { assertMatterAccess, canAccessMatter, filterNotifiableUsers } from '@/lib/authz';
 import { handle, readJson, badRequest } from '@/lib/handler';
 import { transaction } from '@/lib/prisma';
 import { getMatter, getUser, appendAudit, lockMatter, notify, generateId } from '@/lib/repo';
@@ -37,6 +37,14 @@ export async function POST(req: Request, { params }: Params) {
       if (!target) badRequest('Target recipient user not found');
       if (target.id === user.id) {
         badRequest('You cannot request clarification from yourself.');
+      }
+      // Answering requires opening the matter. A question addressed to someone
+      // outside its scope could never be answered, and would hold the matter in
+      // "Clarification Required" with no way forward.
+      if (!(await canAccessMatter(target, id, tx))) {
+        badRequest(
+          `${target.name} cannot open this matter under their organizational scope, so they could not answer. Choose someone involved in it.`
+        );
       }
 
       const previousStatus = matter.status as MatterStatus;

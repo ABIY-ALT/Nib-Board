@@ -21,6 +21,8 @@ export const dynamic = 'force-dynamic';
 
 type Params = { params: Promise<{ id: string }> };
 
+const REPORTABLE_STATUSES: MatterStatus[] = ['Received', 'Under Review', 'Assigned', 'In Progress'];
+
 interface ReportBody {
   actionTaken?: string;
   whatWasImplemented?: string;
@@ -73,6 +75,16 @@ export async function POST(req: Request, { params }: Params) {
       }
       if (matter.status === 'Closed') {
         throw new HttpError(409, 'This BOD matter is closed.');
+      }
+      // Only the statuses the matter screen offers reporting in. Once a report is
+      // under review, confirmed, or the matter is waiting on a clarification, a
+      // fresh submission would overwrite the reviewed report and wipe its review
+      // record; a revision request returns the matter to "In Progress" instead.
+      if (!REPORTABLE_STATUSES.includes(matter.status as MatterStatus)) {
+        throw new HttpError(
+          409,
+          `An Implementation Report cannot be submitted while the matter is "${matter.status}".`
+        );
       }
 
       const required = [
