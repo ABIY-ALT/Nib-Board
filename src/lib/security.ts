@@ -40,7 +40,11 @@ export type AuthEvent =
   | 'ANNOUNCEMENT_CANCELLED'
   | 'ANNOUNCEMENT_DELETED'
   | 'ANNOUNCEMENT_VIEWED'
-  | 'TASK_REMINDER_SENT';
+  | 'TASK_REMINDER_SENT'
+  // Escalation is recorded on the matter's own trail too; this copy puts it in
+  // the institution-wide record the Administrative Audit Log reads.
+  | 'MATTER_ESCALATED'
+  | 'ESCALATION_RESOLVED';
 
 export interface AuthEventInput {
   event: AuthEvent;
