@@ -19,6 +19,7 @@ import { Card, CardHeader, Button, Field, inputClass, selectClass, modalOverlayC
 import { useAuth, useAuthenticatedUser } from '@/context/AuthContext';
 import { DepartmentItem } from '@/lib/departments';
 import { User } from '@/lib/types';
+import { PERMISSIONS } from '@/lib/permissions';
 
 export const DepartmentsManager: React.FC = () => {
   const user = useAuthenticatedUser();
@@ -41,9 +42,8 @@ export const DepartmentsManager: React.FC = () => {
   const [selectedDirectorId, setSelectedDirectorId] = useState('');
   const [updating, setUpdating] = useState(false);
 
-  const canEdit = user.role === 'BOARD_SECRETARIAT' || user.role === 'ADMIN';
-
-  const { allUsers } = useAuth();
+  const { allUsers, can } = useAuth();
+  const canEdit = can(PERMISSIONS.CONFIGURE_SETTINGS);
 
   const loadData = async () => {
     setLoading(true);

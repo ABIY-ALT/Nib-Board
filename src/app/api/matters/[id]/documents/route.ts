@@ -13,6 +13,8 @@ import {
 } from '@/lib/storage';
 import { DocumentCategory, User } from '@/lib/types';
 import type { Matter } from '@/generated/prisma/client';
+import { assertPermission } from '@/lib/permissions.server';
+import { PERMISSIONS } from '@/lib/permissions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -72,6 +74,13 @@ export async function POST(req: Request, { params }: Params) {
     const user = await requireUser();
     const { id } = await params;
     await assertMatterAccess(user, id);
+    // The role must hold the permission; the workflow rules below still decide
+    // which matters it applies to.
+    await assertPermission(
+      user,
+      PERMISSIONS.ATTACH_DOCUMENT,
+      'Access Denied: your role does not hold the "Attach Board papers & Evidence" permission.'
+    );
 
     // Authorized before the upload is parsed or anything reaches the store. The
     // check used to run only inside the transaction, after the bytes had been

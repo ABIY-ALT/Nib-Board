@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { requireUser } from '@/lib/auth';
-import { assertRole } from '@/lib/authz';
 import { handle, readJson, badRequest, conflict } from '@/lib/handler';
 import { listMatterTypes } from '@/lib/repo';
 import { prisma } from '@/lib/prisma';
 import { assertSameOrigin, recordAuthEvent, clientIp, userAgent } from '@/lib/security';
+import { assertPermission } from '@/lib/permissions.server';
+import { PERMISSIONS } from '@/lib/permissions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,17 +19,18 @@ export async function GET() {
 
 /**
  * Adds a matter type. The taxonomy is configuration rather than case data, so
- * it is restricted to the Board Secretariat and administrators (spec §3).
+ * it needs `configure_settings` (held by the Board Secretariat and administrators
+ * out of the box; spec §3).
  */
 export async function POST(req: Request) {
   return handle(async () => {
     assertSameOrigin(req);
 
     const user = await requireUser();
-    assertRole(
+    await assertPermission(
       user,
-      ['BOARD_SECRETARIAT', 'ADMIN'],
-      'Only Board Secretariat or an administrator may configure matter types.'
+      PERMISSIONS.CONFIGURE_SETTINGS,
+      'Access Denied: your role does not hold the "Governance Settings & Classifications" permission.'
     );
 
     const { name } = await readJson<{ name?: string }>(req);
@@ -67,10 +69,10 @@ export async function DELETE(req: Request) {
     assertSameOrigin(req);
 
     const user = await requireUser();
-    assertRole(
+    await assertPermission(
       user,
-      ['BOARD_SECRETARIAT', 'ADMIN'],
-      'Only Board Secretariat or an administrator may retire matter types.'
+      PERMISSIONS.CONFIGURE_SETTINGS,
+      'Access Denied: your role does not hold the "Governance Settings & Classifications" permission.'
     );
 
     const { name } = await readJson<{ name?: string }>(req);

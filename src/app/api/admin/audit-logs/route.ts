@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { requireUser } from '@/lib/auth';
-import { assertRole } from '@/lib/authz';
 import { handle } from '@/lib/handler';
 import { prisma } from '@/lib/prisma';
 import { toAuditCsv } from '@/lib/audit-csv';
 import type { Prisma } from '@/generated/prisma/client';
+import { assertPermission } from '@/lib/permissions.server';
+import { PERMISSIONS } from '@/lib/permissions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -21,8 +22,6 @@ const MAX_PAGE_SIZE = 100;
  * response says when it was reached rather than silently truncating.
  */
 const CSV_MAX_ROWS = 50_000;
-
-const AUDIT_ROLES = ['BOARD_SECRETARIAT', 'BOARD_MEMBER', 'ADMIN'] as const;
 
 /**
  * The filter, built once and applied identically to the page query, the total
@@ -87,10 +86,10 @@ function serialize(e: EventRow) {
 export async function GET(req: Request) {
   return handle(async () => {
     const user = await requireUser();
-    assertRole(
+    await assertPermission(
       user,
-      [...AUDIT_ROLES],
-      'Only Board Secretariat, Board Members, or Administrators may view the System Audit Log.'
+      PERMISSIONS.VIEW_AUDIT_TRAIL,
+      'Access Denied: your role does not hold the "Global Institutional Audit Trail" permission.'
     );
 
     const url = new URL(req.url);

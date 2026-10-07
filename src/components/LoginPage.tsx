@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import Image from 'next/image';
+import { NibLogoImage } from '@/components/ui/NibLogoImage';
 import { AlertTriangle, CheckCircle, Lock, Eye, EyeOff, Monitor, Moon, Sun } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -115,14 +115,7 @@ export const LoginPage: React.FC = () => {
         {/* Brand Lockup */}
         <div className="flex flex-col items-center text-center mb-6">
           <div className="w-14 h-14 rounded-2xl bg-white p-1.5 shadow-2xl border border-nib-gold-500/40 flex items-center justify-center mb-3 dark:border-nib-gold-400/40">
-            <Image
-              src="/nib-logo.png"
-              alt="NIB Bank"
-              width={52}
-              height={52}
-              priority
-              className="w-full h-full object-contain"
-            />
+            <NibLogoImage size={52} alt="NIB Bank" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-[17px] font-extrabold text-nib-brown-900 tracking-tight leading-tight dark:text-white">
             NIB INTERNATIONAL BANK S.C.

@@ -28,6 +28,7 @@ import {
   mattersForView,
   overdueBucket,
 } from '@/lib/matters';
+import { PERMISSIONS } from '@/lib/permissions';
 
 interface MattersViewProps {
   view: ViewId;
@@ -46,7 +47,7 @@ const ALL = 'ALL';
  * rather than each drifting into its own table.
  */
 export const MattersView: React.FC<MattersViewProps> = ({ view, onSelectMatter, onRegister }) => {
-  const { matters, isLoading, matterTypes } = useAuth();
+  const { matters, isLoading, matterTypes, can } = useAuth();
   const user = useAuthenticatedUser();
   const item = navItem(view);
 
@@ -234,7 +235,7 @@ export const MattersView: React.FC<MattersViewProps> = ({ view, onSelectMatter, 
   const criticalCount = scoped.filter((m) => m.priority === 'Urgent').length;
   const highCount = scoped.filter((m) => m.priority === 'High').length;
 
-  const canRegister = user.role === 'BOARD_SECRETARIAT' || user.role === 'ADMIN';
+  const canRegister = can(PERMISSIONS.REGISTER_MATTER);
 
   return (
     <div>

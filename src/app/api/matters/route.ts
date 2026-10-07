@@ -1,5 +1,5 @@
 import { requireUser, HttpError } from '@/lib/auth';
-import { assertRole, filterNotifiableUsers } from '@/lib/authz';
+import { filterNotifiableUsers } from '@/lib/authz';
 import { handle, readJson, badRequest } from '@/lib/handler';
 import { transaction } from '@/lib/prisma';
 import {
@@ -12,6 +12,8 @@ import {
   notify,
 } from '@/lib/repo';
 import { Priority, MatterStatus } from '@/lib/types';
+import { assertPermission } from '@/lib/permissions.server';
+import { PERMISSIONS } from '@/lib/permissions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -61,10 +63,10 @@ const toDate = (value: string | undefined | null): Date | null =>
 export async function POST(req: Request) {
   return handle(async () => {
     const user = await requireUser();
-    assertRole(
+    await assertPermission(
       user,
-      ['BOARD_SECRETARIAT', 'ADMIN'],
-      'Only Board Secretariat is authorized to register official BOD matters.'
+      PERMISSIONS.REGISTER_MATTER,
+      'Access Denied: your role does not hold the "Register Board matter" permission.'
     );
 
     const body = await readJson<RegisterBody>(req);

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isSessionLive, SESSION_COOKIE } from '@/lib/session';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
@@ -60,8 +61,20 @@ function crossSiteRejection(req: NextRequest): string | null {
  * the cross-site checks below were ever applied. `next build` lists the proxy
  * in its output when it has been picked up.
  */
-export function proxy(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const isProduction = process.env.NODE_ENV === 'production';
+  const isApi = req.nextUrl.pathname.startsWith('/api/');
+
+  // Pages are only ever fetched. The application has no Server Actions, so a
+  // POST (or any other method) to a page URL is not a request it can serve —
+  // and handing Next.js a body it would try to decode as one is how a
+  // malformed upload became an unhandled 500 (security assessment VA-010).
+  if (!isApi && !SAFE_METHODS.has(req.method)) {
+    return new NextResponse('Method not allowed.', {
+      status: 405,
+      headers: { Allow: 'GET, HEAD', 'Content-Type': 'text/plain; charset=utf-8' },
+    });
+  }
 
   // A per-request nonce lets the strict CSP admit Next.js's own hydration
   // scripts without opening the door to arbitrary inline script.
@@ -74,8 +87,13 @@ export function proxy(req: NextRequest) {
     isProduction
       ? `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`
       : `script-src 'self' 'unsafe-eval' 'unsafe-inline'`,
-    // Tailwind emits style attributes at runtime, which requires inline styles.
-    `style-src 'self' 'unsafe-inline'`,
+    // No 'unsafe-inline' for styles either (security assessment VA-005):
+    // <style> elements need the nonce, and style ATTRIBUTES in the
+    // server-rendered HTML are refused. The workspace renders on the client,
+    // where React sets inline styles through the DOM style API, which CSP
+    // does not restrict; what the server renders must not use `style={…}`.
+    // Development keeps inline styles for the dev overlay and hot reload.
+    isProduction ? `style-src 'self' 'nonce-${nonce}'` : `style-src 'self' 'unsafe-inline'`,
     `img-src 'self' data: blob:`,
     `font-src 'self' data:`,
     // The app talks only to its own API; in development the dev server also
@@ -91,7 +109,7 @@ export function proxy(req: NextRequest) {
   // CSRF is enforced here rather than per-route so that adding an endpoint
   // cannot accidentally omit it. The session cookie is SameSite=Strict, which
   // already stops a browser attaching it cross-site; this is the second layer.
-  if (req.nextUrl.pathname.startsWith('/api/') && !SAFE_METHODS.has(req.method)) {
+  if (isApi && !SAFE_METHODS.has(req.method)) {
     const rejection = crossSiteRejection(req);
     if (rejection) {
       return NextResponse.json({ error: rejection }, { status: 403 });
@@ -122,6 +140,12 @@ export function proxy(req: NextRequest) {
   res.headers.set('Referrer-Policy', 'same-origin');
   res.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
   res.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+  // Cross-origin isolation (security assessment VA-008). The application
+  // loads nothing from another origin — the CSP confines every fetch, image
+  // and font to 'self' — so require-corp costs nothing and stays true only
+  // while that does. CORP stops other sites embedding these responses.
+  res.headers.set('Cross-Origin-Embedder-Policy', 'require-corp');
+  res.headers.set('Cross-Origin-Resource-Policy', 'same-origin');
   res.headers.set('X-Permitted-Cross-Domain-Policies', 'none');
 
   if (isProduction) {
@@ -129,9 +153,25 @@ export function proxy(req: NextRequest) {
   }
 
   // Board data must never be held in a shared or browser cache.
-  if (req.nextUrl.pathname.startsWith('/api/')) {
+  if (isApi) {
     res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.headers.set('Pragma', 'no-cache');
+  }
+
+  // A page load carrying a session cookie the server no longer honours —
+  // signed out, revoked, timed out — has the cookie removed (security
+  // assessment VA-006). Every API call already refuses such a session with a
+  // 401; this makes a replayed cookie visibly dead on the page itself too,
+  // rather than answered with the same 200 shell a live one gets. API
+  // requests are skipped: their own handler performs this same check.
+  const token = req.cookies.get(SESSION_COOKIE)?.value;
+  if (token && !isApi) {
+    try {
+      if (!(await isSessionLive(token))) res.cookies.delete(SESSION_COOKIE);
+    } catch (err) {
+      // A database blip must not sign everyone out; the API decides.
+      console.error('[proxy] session check failed:', err);
+    }
   }
 
   return res;

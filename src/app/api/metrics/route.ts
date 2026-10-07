@@ -1,5 +1,5 @@
 import { requireUser } from '@/lib/auth';
-import { visibilityWhere } from '@/lib/authz';
+import { scopeWhere } from '@/lib/authz';
 import { handle } from '@/lib/handler';
 import { prisma } from '@/lib/prisma';
 import { DashboardMetrics } from '@/lib/types';
@@ -25,7 +25,7 @@ export async function GET() {
     const user = await requireUser();
 
     const rows = await prisma.matter.findMany({
-      where: visibilityWhere(user),
+      where: await scopeWhere(user),
       select: {
         matterType: true,
         status: true,

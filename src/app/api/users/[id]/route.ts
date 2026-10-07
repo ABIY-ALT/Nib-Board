@@ -1,17 +1,14 @@
 import { requireUser, HttpError } from '@/lib/auth';
-import { assertRole } from '@/lib/authz';
-import { handle, readJson, badRequest, conflict } from '@/lib/handler';
+import { handle, readJson, readPhone, badRequest, conflict } from '@/lib/handler';
 import { transaction } from '@/lib/prisma';
 import { revokeAllSessionsForUser } from '@/lib/session';
 import { assertSameOrigin, clientIp, recordAuthEvent, userAgent, appOrigin } from '@/lib/security';
-import {
-  ASSIGNABLE_ROLES,
-  EMAIL_PATTERN,
-  USER_ADMIN_ROLES,
-} from '@/lib/users';
+import { ASSIGNABLE_ROLES, EMAIL_PATTERN } from '@/lib/users';
 import { Role } from '@/lib/types';
 import { createSetupToken, revokeSetupTokensForUser } from '@/lib/setup-token';
 import { sendPasswordResetEmail } from '@/lib/email';
+import { assertAdministrationReachable, assertPermission } from '@/lib/permissions.server';
+import { PERMISSIONS } from '@/lib/permissions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -47,10 +44,10 @@ export async function PATCH(req: Request, { params }: Params) {
     assertSameOrigin(req);
 
     const actor = await requireUser();
-    assertRole(
+    await assertPermission(
       actor,
-      USER_ADMIN_ROLES,
-      'Only an administrator or the Board Secretariat may administer officer accounts.'
+      PERMISSIONS.ADMINISTER_USERS,
+      'Access Denied: your role does not hold the "Administer officer accounts" permission.'
     );
 
     const { id } = await params;
@@ -109,7 +106,7 @@ export async function PATCH(req: Request, { params }: Params) {
       }
 
       if (body.department !== undefined) data.department = body.department?.trim() || null;
-      if (body.phone !== undefined) data.phone = body.phone?.trim() || null;
+      if (body.phone !== undefined) data.phone = readPhone(body.phone);
 
       if (body.unlock) {
         data.lockedUntil = null;
@@ -146,6 +143,12 @@ export async function PATCH(req: Request, { params }: Params) {
       }
 
       const updated = await tx.user.update({ where: { id }, data });
+
+      // Moving or deactivating the last officer who can administer the system
+      // would leave nobody able to undo it.
+      if (data.role !== undefined || activation === 'USER_DEACTIVATED') {
+        await assertAdministrationReachable(tx);
+      }
 
       // A deactivation, a role change or a credential reset must not leave the
       // old session working: each of them changes what that session should be
@@ -242,10 +245,10 @@ export async function DELETE(req: Request, { params }: Params) {
     assertSameOrigin(req);
 
     const actor = await requireUser();
-    assertRole(
+    await assertPermission(
       actor,
-      USER_ADMIN_ROLES,
-      'Only an administrator or the Board Secretariat may administer officer accounts.'
+      PERMISSIONS.ADMINISTER_USERS,
+      'Access Denied: your role does not hold the "Administer officer accounts" permission.'
     );
 
     const { id } = await params;
@@ -259,6 +262,7 @@ export async function DELETE(req: Request, { params }: Params) {
       if (!target.isActive) return { ok: true, alreadyInactive: true };
 
       await tx.user.update({ where: { id }, data: { isActive: false } });
+      await assertAdministrationReachable(tx);
       await revokeAllSessionsForUser(tx, id, 'account deactivated');
       await recordAuthEvent(tx, {
         event: 'USER_DEACTIVATED',

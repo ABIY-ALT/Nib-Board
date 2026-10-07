@@ -1,9 +1,10 @@
 import { requireUser } from '@/lib/auth';
-import { assertRole } from '@/lib/authz';
 import { handle, readJson, badRequest } from '@/lib/handler';
 import { sendTestEmail } from '@/lib/email';
-import { EMAIL_PATTERN, USER_ADMIN_ROLES } from '@/lib/users';
+import { EMAIL_PATTERN } from '@/lib/users';
 import { assertSameOrigin } from '@/lib/security';
+import { assertPermission } from '@/lib/permissions.server';
+import { PERMISSIONS } from '@/lib/permissions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,10 +17,10 @@ export async function POST(req: Request) {
     assertSameOrigin(req);
 
     const user = await requireUser();
-    assertRole(
+    await assertPermission(
       user,
-      USER_ADMIN_ROLES,
-      'Only an administrator or Board Secretariat may run SMTP diagnostics.'
+      PERMISSIONS.CONFIGURE_SETTINGS,
+      'Access Denied: your role does not hold the "Governance Settings & Classifications" permission.'
     );
 
     const body = await readJson<{ to?: string }>(req);

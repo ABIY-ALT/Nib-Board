@@ -1,10 +1,10 @@
 import { requireUser } from '@/lib/auth';
-import { assertRole } from '@/lib/authz';
 import { handle, readJson, badRequest, conflict } from '@/lib/handler';
 import { prisma } from '@/lib/prisma';
 import { listDepartments } from '@/lib/departments.server';
-import { USER_ADMIN_ROLES } from '@/lib/users';
 import { assertSameOrigin, recordAuthEvent, clientIp, userAgent } from '@/lib/security';
+import { assertPermission } from '@/lib/permissions.server';
+import { PERMISSIONS } from '@/lib/permissions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -25,10 +25,10 @@ export async function POST(req: Request) {
     assertSameOrigin(req);
 
     const user = await requireUser();
-    assertRole(
+    await assertPermission(
       user,
-      USER_ADMIN_ROLES,
-      'Only Board Secretariat or an administrator may create departments.'
+      PERMISSIONS.CONFIGURE_SETTINGS,
+      'Access Denied: your role does not hold the "Governance Settings & Classifications" permission.'
     );
 
     const body = await readJson<{

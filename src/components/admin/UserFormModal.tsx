@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { AlertCircle, Mail, UserPlus, UserCog, X } from 'lucide-react';
 import { Button, Field, inputClass, selectClass, modalOverlayClass } from '@/components/ui/primitives';
 import { ROLE_LABEL } from '@/lib/matters';
-import { ASSIGNABLE_ROLES } from '@/lib/users';
+import { ASSIGNABLE_ROLES, isValidPhone, PHONE_REQUIREMENT } from '@/lib/users';
 import { Role, User } from '@/lib/types';
 
 export interface UserFormResult {
@@ -100,6 +100,10 @@ export const UserFormModal: React.FC<Props> = ({ isOpen, onClose, editing, onSav
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (form.phone.trim() && !isValidPhone(form.phone.trim())) {
+      setError(PHONE_REQUIREMENT);
+      return;
+    }
     setBusy(true);
     setError(null);
 
@@ -267,6 +271,9 @@ export const UserFormModal: React.FC<Props> = ({ isOpen, onClose, editing, onSav
             <Field label="Phone number" htmlFor="u-phone">
               <input
                 id="u-phone"
+                type="tel"
+                inputMode="tel"
+                maxLength={24}
                 value={form.phone}
                 onChange={(e) => set('phone')(e.target.value)}
                 placeholder="+251 11 550 0000"

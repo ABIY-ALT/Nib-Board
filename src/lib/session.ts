@@ -158,6 +158,28 @@ export async function resolveSession(
   };
 }
 
+/**
+ * Whether a token names a live session, without touching it.
+ *
+ * For src/proxy.ts, which only needs to know whether a cookie is still worth
+ * presenting. Unlike resolveSession() it does not slide the idle window: a
+ * page load is not activity, and the API calls that follow it slide the window
+ * themselves.
+ */
+export async function isSessionLive(token: string): Promise<boolean> {
+  const now = new Date();
+  const live = await prisma.session.count({
+    where: {
+      tokenHash: hashToken(token),
+      revokedAt: null,
+      expiresAt: { gt: now },
+      absoluteExpiresAt: { gt: now },
+      user: { isActive: true },
+    },
+  });
+  return live > 0;
+}
+
 export async function revokeSession(token: string | undefined, reason: string): Promise<void> {
   if (!token) return;
   await prisma.session.updateMany({

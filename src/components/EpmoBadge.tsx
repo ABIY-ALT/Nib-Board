@@ -105,7 +105,7 @@ export const EpmoBadge: React.FC<EpmoBadgeProps> = ({ className = '' }) => {
             fontWeight="800"
             letterSpacing="0.24em"
             filter="url(#epmo-subtext-shadow)"
-            style={{ fontFamily: 'var(--font-geist-sans), system-ui, -apple-system, sans-serif' }}
+            className="font-[family-name:var(--font-geist-sans),system-ui,-apple-system,sans-serif]"
           >
             SYSTEM BY
           </text>
@@ -120,7 +120,7 @@ export const EpmoBadge: React.FC<EpmoBadgeProps> = ({ className = '' }) => {
             fontWeight="900"
             letterSpacing="0.08em"
             filter="url(#epmo-text-shadow)"
-            style={{ fontFamily: 'var(--font-geist-sans), system-ui, -apple-system, sans-serif' }}
+            className="font-[family-name:var(--font-geist-sans),system-ui,-apple-system,sans-serif]"
           >
             EPMO
           </text>

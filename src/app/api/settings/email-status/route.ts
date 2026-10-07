@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { requireUser } from '@/lib/auth';
-import { assertRole } from '@/lib/authz';
 import { handle } from '@/lib/handler';
 import { getEmailConfigSummary } from '@/lib/email';
-import { USER_ADMIN_ROLES } from '@/lib/users';
+import { assertPermission } from '@/lib/permissions.server';
+import { PERMISSIONS } from '@/lib/permissions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,10 +15,10 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   return handle(async () => {
     const user = await requireUser();
-    assertRole(
+    await assertPermission(
       user,
-      USER_ADMIN_ROLES,
-      'Only an administrator or Board Secretariat may view email configuration.'
+      PERMISSIONS.CONFIGURE_SETTINGS,
+      'Access Denied: your role does not hold the "Governance Settings & Classifications" permission.'
     );
 
     return getEmailConfigSummary();

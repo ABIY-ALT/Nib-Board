@@ -1,9 +1,11 @@
 import { requireUser, HttpError } from '@/lib/auth';
-import { assertMatterAccess, assertRole, filterNotifiableUsers } from '@/lib/authz';
+import { assertMatterAccess, filterNotifiableUsers } from '@/lib/authz';
 import { handle, readJson } from '@/lib/handler';
 import { transaction } from '@/lib/prisma';
 import { getMatter, appendAudit, addWorkflowNode, lockMatter, notify } from '@/lib/repo';
 import { MatterStatus } from '@/lib/types';
+import { assertPermission } from '@/lib/permissions.server';
+import { PERMISSIONS } from '@/lib/permissions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -23,10 +25,10 @@ export async function POST(req: Request, { params }: Params) {
     const user = await requireUser();
     const { id } = await params;
     await assertMatterAccess(user, id);
-    assertRole(
+    await assertPermission(
       user,
-      ['BOARD_SECRETARIAT', 'CEO', 'ADMIN'],
-      'Only Board Secretariat or CEO is authorized to formally close a BOD matter.'
+      PERMISSIONS.CLOSE_MATTER,
+      'Access Denied: your role does not hold the "Formally Close Matter" permission.'
     );
 
     const { closureNotes } = await readJson<{ closureNotes?: string }>(req).catch(() => ({

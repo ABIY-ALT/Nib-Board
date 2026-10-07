@@ -1,17 +1,14 @@
 import { requireUser } from '@/lib/auth';
-import { assertRole } from '@/lib/authz';
-import { handle, readJson, badRequest, conflict } from '@/lib/handler';
+import { handle, readJson, readPhone, badRequest, conflict } from '@/lib/handler';
 import { prisma, transaction } from '@/lib/prisma';
 import { listUsers, listUsersForAdministration, generateId } from '@/lib/repo';
 import { assertSameOrigin, clientIp, recordAuthEvent, userAgent, appOrigin } from '@/lib/security';
-import {
-  ASSIGNABLE_ROLES,
-  EMAIL_PATTERN,
-  USER_ADMIN_ROLES,
-} from '@/lib/users';
+import { ASSIGNABLE_ROLES, EMAIL_PATTERN } from '@/lib/users';
 import { Role } from '@/lib/types';
 import { createSetupToken } from '@/lib/setup-token';
 import { sendSetupEmail } from '@/lib/email';
+import { assertPermission } from '@/lib/permissions.server';
+import { PERMISSIONS } from '@/lib/permissions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -30,15 +27,15 @@ export async function GET(req: Request) {
     const user = await requireUser();
 
     // `?scope=all` additionally returns deactivated accounts, each tagged with
-    // its state. Restricted to the roles that can act on them, and never the
+    // its state. Restricted to `administer_users`, the permission that acts on them, and never the
     // default — the rest of the application must only see officers who can act.
     const scope = new URL(req.url).searchParams.get('scope');
     if (scope === 'all') {
-      assertRole(
-        user,
-        USER_ADMIN_ROLES,
-        'Only an administrator or the Board Secretariat may list deactivated accounts.'
-      );
+      await assertPermission(
+      user,
+      PERMISSIONS.ADMINISTER_USERS,
+      'Access Denied: your role does not hold the "Administer officer accounts" permission.'
+    );
       return listUsersForAdministration();
     }
 
@@ -69,10 +66,10 @@ export async function POST(req: Request) {
     assertSameOrigin(req);
 
     const actor = await requireUser();
-    assertRole(
+    await assertPermission(
       actor,
-      USER_ADMIN_ROLES,
-      'Only an administrator or the Board Secretariat may provision officer accounts.'
+      PERMISSIONS.ADMINISTER_USERS,
+      'Access Denied: your role does not hold the "Administer officer accounts" permission.'
     );
 
     const body = await readJson<CreateBody>(req);
@@ -94,6 +91,7 @@ export async function POST(req: Request) {
     if (!EMAIL_PATTERN.test(email!)) {
       badRequest('Enter a valid email address.');
     }
+    const phone = readPhone(body.phone);
 
     // Derive the base URL from the incoming request so the setup link points
     // at the right host in both development and production.
@@ -122,7 +120,7 @@ export async function POST(req: Request) {
           title: title!,
           businessArea: businessArea!,
           department: body.department?.trim() || null,
-          phone: body.phone?.trim() || null,
+          phone,
           passwordHash: null,
           mustChangePassword: true,
         },

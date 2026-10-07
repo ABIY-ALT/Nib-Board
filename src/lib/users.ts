@@ -1,14 +1,8 @@
-import { randomBytes } from 'crypto';
 import { Role } from './types';
 
-/**
- * Who may provision and administer accounts.
- *
- * The Board Secretariat is included because it is the office that actually
- * knows who holds which post; ADMIN is included because it is the account that
- * has to be able to recover the system when nobody else can sign in.
- */
-export const USER_ADMIN_ROLES: Role[] = ['ADMIN', 'BOARD_SECRETARIAT'];
+// Imported by client components (UserFormModal), so nothing here may pull in a
+// Node module: importing 'crypto' bundled a browser polyfill whose ASN.1
+// parser calls eval() on load, which the CSP blocks.
 
 /** Roles an administrator may assign. Mirrors the CHECK constraint on users.role. */
 export const ASSIGNABLE_ROLES: Role[] = [
@@ -22,15 +16,27 @@ export const ASSIGNABLE_ROLES: Role[] = [
   'ADMIN',
 ];
 
-/**
- * A temporary credential the administrator can read out once.
- *
- * Random rather than a house pattern: it is handed over out of band, and the
- * account is flagged for a forced change the moment it is used, so it only has
- * to survive the walk down the corridor.
- */
-export function generateTemporaryPassword(): string {
-  return `Nib-${randomBytes(6).toString('base64url')}`;
-}
-
 export const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+/**
+ * An Ethiopian telephone number, mobile or fixed line: "+251" or a leading
+ * "0", then the nine-digit national number — 9… or 7… for a mobile, an area
+ * code such as 11 (Addis Ababa) for a fixed line. Spaces, hyphens, dots and
+ * brackets are separators and ignored, so "+251 11 550 3288" and "0911234567"
+ * both pass, while "091110" (too short) and "091234533333333333" (too long)
+ * do not.
+ *
+ * Shared by the user routes and the user form, so the browser's message and
+ * the server's refusal are the same rule. The server is the one that counts.
+ */
+const PHONE_PATTERN = /^(?:\+251|0)[1-9]\d{8}$/;
+
+/** Longest a number can be with generous spacing; longer is not a phone number. */
+const MAX_PHONE_INPUT_LENGTH = 24;
+
+export const PHONE_REQUIREMENT =
+  'Enter a valid Ethiopian phone number: 0 or +251 followed by 9 digits, e.g. 0911 234 567 or +251 11 550 3288.';
+
+export function isValidPhone(phone: string): boolean {
+  return phone.length <= MAX_PHONE_INPUT_LENGTH && PHONE_PATTERN.test(phone.replace(/[\s\-.()]/g, ''));
+}

@@ -18,6 +18,7 @@ import { useTheme, ThemePreference } from '@/context/ThemeContext';
 import { cn, StatusBadge, TypeChip } from '@/components/ui/primitives';
 import { BODMatter } from '@/lib/types';
 import { ViewId } from '@/lib/navigation';
+import { PERMISSIONS } from '@/lib/permissions';
 
 const ROLE_LABEL: Record<string, string> = {
   BOARD_SECRETARIAT: 'Board Secretariat',
@@ -93,7 +94,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   onSelectMatter,
   onNavigate,
 }) => {
-  const { matters, notifications, markNotificationRead, markAllNotificationsRead, logout } =
+  const { matters, notifications, markNotificationRead, markAllNotificationsRead, logout, can } =
     useAuth();
   const currentUser = useAuthenticatedUser();
   const { preference, setPreference } = useTheme();
@@ -425,7 +426,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                 <p className="text-[13px] text-ink mt-1">{currentUser.businessArea}</p>
               </div>
 
-              {(currentUser.role === 'BOARD_SECRETARIAT' || currentUser.role === 'ADMIN') && (
+              {can(PERMISSIONS.CONFIGURE_SETTINGS) && (
                 <button
                   onClick={() => {
                     onNavigate('settings');

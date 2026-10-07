@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/primitives';
 import { AuditLogEntry, BODMatter, ClarificationThread } from '@/lib/types';
 import { ROLE_LABEL, daysOpen, formatDate, formatDateTime } from '@/lib/matters';
+import { PERMISSIONS } from '@/lib/permissions';
 
 interface MatterDetailProps {
   matter: BODMatter;
@@ -82,7 +83,7 @@ export const MatterDetail: React.FC<MatterDetailProps> = ({
   onOpenUploadModal,
   onOpenClarificationReplyModal,
 }) => {
-  const { refreshMatters, refreshMetrics } = useAuth();
+  const { refreshMatters, refreshMetrics, can } = useAuth();
   const user = useAuthenticatedUser();
 
   const [tab, setTab] = useState('overview');
@@ -117,10 +118,15 @@ export const MatterDetail: React.FC<MatterDetailProps> = ({
     (isOwner || matter.currentOwnerRole === 'CEO' || matter.currentOwnerRole === 'CEO_SECRETARIAT');
   const isClosed = matter.status === 'Closed';
   const needsAccept =
-    (isOwner || isCeoOwner) && !isClosed && ['Received', 'Under Review', 'Assigned'].includes(matter.status);
-  const canRoute = (isOwner || isCeoOwner) && !isClosed && user.role !== 'DIRECTOR';
+    (isOwner || isCeoOwner) &&
+    !isClosed &&
+    can(PERMISSIONS.ACCEPT_OWNERSHIP) &&
+    ['Received', 'Under Review', 'Assigned'].includes(matter.status);
+  const canRoute =
+    (isOwner || isCeoOwner) && !isClosed && user.role !== 'DIRECTOR' && can(PERMISSIONS.ROUTE_MATTER);
   const canReport =
     !isClosed &&
+    can(PERMISSIONS.SUBMIT_REPORT) &&
     ((user.role === 'DIRECTOR' && (matter.responsibleDirectorId === user.id || isOwner)) ||
       isCeoOwner ||
       (user.role === 'CHIEF' && isOwner) ||
@@ -130,11 +136,14 @@ export const MatterDetail: React.FC<MatterDetailProps> = ({
     !isClosed &&
     matter.status === 'Implementation Submitted' &&
     (!report?.submittedBy || report.submittedBy !== user.id) &&
-    ['CEO', 'CEO_SECRETARIAT', 'CHIEF', 'DEPUTY_CHIEF', 'BOARD_SECRETARIAT', 'ADMIN'].includes(user.role);
+    can(PERMISSIONS.CONFIRM_COMPLETION);
   const canClose =
     !isClosed &&
     matter.status === 'Under Review / Confirmation' &&
-    ['BOARD_SECRETARIAT', 'CEO', 'CEO_SECRETARIAT', 'ADMIN'].includes(user.role);
+    can(PERMISSIONS.CLOSE_MATTER);
+  const canClarify = !isClosed && can(PERMISSIONS.REQUEST_CLARIFICATION);
+  const canAttach = !isClosed && can(PERMISSIONS.ATTACH_DOCUMENT);
+  const canReply = can(PERMISSIONS.REPLY_CLARIFICATION);
 
   const accept = async () => {
     setAccepting(true);
@@ -212,20 +221,20 @@ export const MatterDetail: React.FC<MatterDetailProps> = ({
                   Formally close
                 </Button>
               )}
-              {!isClosed && (
-                <>
-                  <Button variant="secondary" onClick={onOpenClarificationModal} icon={<HelpCircle className="w-3.5 h-3.5" />}>
+              {canClarify && (
+                <Button variant="secondary" onClick={onOpenClarificationModal} icon={<HelpCircle className="w-3.5 h-3.5" />}>
                     {user.role === 'BOARD_MEMBER' ? 'Give Board Direction / Query' : 'Request clarification'}
-                  </Button>
-                  <Button variant="secondary" onClick={onOpenUploadModal} icon={<Upload className="w-3.5 h-3.5" />}>
-                    Attach document
-                  </Button>
-                </>
+                </Button>
+              )}
+              {canAttach && (
+                <Button variant="secondary" onClick={onOpenUploadModal} icon={<Upload className="w-3.5 h-3.5" />}>
+                  Attach document
+                </Button>
               )}
             </div>
           )}
 
-          {myThread && (
+          {myThread && canReply && (
             <div className="mt-3 flex items-start gap-2.5 bg-st-wait-bg border border-st-wait/25 rounded-(--radius-control) px-3 py-2.5">
               <MessageSquare className="w-4 h-4 text-st-wait shrink-0 mt-0.5" />
               <div className="min-w-0 flex-1">
@@ -549,7 +558,7 @@ export const MatterDetail: React.FC<MatterDetailProps> = ({
               description="Board papers, supporting material and implementation evidence."
               icon={<Paperclip className="w-4 h-4" />}
               action={
-                !isClosed ? (
+                canAttach ? (
                   <Button size="sm" variant="secondary" onClick={onOpenUploadModal}>
                     Attach
                   </Button>
@@ -652,7 +661,7 @@ export const MatterDetail: React.FC<MatterDetailProps> = ({
                         </p>
                       </div>
                     ) : (
-                      c.requestedTo === user.id && (
+                      canReply && c.requestedTo === user.id && (
                         <Button
                           size="sm"
                           variant="secondary"

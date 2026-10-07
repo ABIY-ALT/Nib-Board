@@ -1,10 +1,10 @@
 import { requireUser, HttpError } from '@/lib/auth';
-import { assertRole } from '@/lib/authz';
 import { handle, readJson, badRequest } from '@/lib/handler';
 import { prisma } from '@/lib/prisma';
 import { listDepartments } from '@/lib/departments.server';
-import { USER_ADMIN_ROLES } from '@/lib/users';
 import { assertSameOrigin, recordAuthEvent, clientIp, userAgent } from '@/lib/security';
+import { assertPermission } from '@/lib/permissions.server';
+import { PERMISSIONS } from '@/lib/permissions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -19,10 +19,10 @@ export async function PATCH(req: Request, { params }: Params) {
     assertSameOrigin(req);
 
     const user = await requireUser();
-    assertRole(
+    await assertPermission(
       user,
-      USER_ADMIN_ROLES,
-      'Only Board Secretariat or an administrator may update departments.'
+      PERMISSIONS.CONFIGURE_SETTINGS,
+      'Access Denied: your role does not hold the "Governance Settings & Classifications" permission.'
     );
 
     const { id } = await params;
@@ -121,10 +121,10 @@ export async function DELETE(req: Request, { params }: Params) {
     assertSameOrigin(req);
 
     const user = await requireUser();
-    assertRole(
+    await assertPermission(
       user,
-      USER_ADMIN_ROLES,
-      'Only Board Secretariat or an administrator may delete departments.'
+      PERMISSIONS.CONFIGURE_SETTINGS,
+      'Access Denied: your role does not hold the "Governance Settings & Classifications" permission.'
     );
 
     const { id } = await params;

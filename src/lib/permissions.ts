@@ -8,13 +8,49 @@
  * these permissions today, but any role can be granted them, and a role can
  * have them taken away without touching a line of code.
  *
- * The keys here are the announcement and reminder permissions. The older
- * matter-workflow permissions live in `roles.ts` alongside the role defaults
- * and use lowercase keys; both vocabularies sit in the same `permissions`
- * array on a role definition, so a key must be unique across the two.
+ * Every key the matrix offers is enforced on the server. A permission is
+ * necessary but not always sufficient: matter actions still apply the workflow
+ * rules on top — you can only route a matter you hold, only answer a
+ * clarification addressed to you, and routing only moves down the hierarchy —
+ * so granting `route_matter` lets a role route its own matters, not anyone's.
+ *
+ * The matter-workflow keys are lowercase for historical reasons; both sets sit
+ * in the same `permissions` array on a role definition, so a key must be unique
+ * across the two. Labels and descriptions for the matrix live in `roles.ts`.
  */
 
 export const PERMISSIONS = {
+  // ── Matter visibility & workflow ──────────────────────────────────────────
+  /** Bank-wide visibility of every Board matter, not just your own scope. */
+  SEE_ALL: 'see_all',
+  /** Register a Board decision, directive or resolution. */
+  REGISTER_MATTER: 'register_matter',
+  /** Forward or assign a matter you hold to the level below. */
+  ROUTE_MATTER: 'route_matter',
+  /** Accept ownership of a matter routed to you. */
+  ACCEPT_OWNERSHIP: 'accept_ownership',
+  /** Ask a named officer for clarification on a matter. */
+  REQUEST_CLARIFICATION: 'request_clarification',
+  /** Answer a clarification addressed to you. */
+  REPLY_CLARIFICATION: 'reply_clarification',
+  /** Upload documents to a matter you are accountable for. */
+  ATTACH_DOCUMENT: 'attach_document',
+  /** Submit the Implementation Report on a matter you execute. */
+  SUBMIT_REPORT: 'submit_report',
+  /** Approve or send back a submitted Implementation Report. */
+  CONFIRM_COMPLETION: 'confirm_completion',
+  /** Formally close a confirmed matter. */
+  CLOSE_MATTER: 'close_matter',
+  /** Executive analytics, SLA and report screens. */
+  VIEW_ANALYTICS: 'view_analytics',
+  /** The institution-wide system audit log. */
+  VIEW_AUDIT_TRAIL: 'view_audit_trail',
+  // ── Administration ────────────────────────────────────────────────────────
+  /** Provision, edit, reset, unlock and deactivate officer accounts. */
+  ADMINISTER_USERS: 'administer_users',
+  /** Roles & permissions, matter types, departments and email settings. */
+  CONFIGURE_SETTINGS: 'configure_settings',
+  // ── Announcements & reminders ─────────────────────────────────────────────
   /** See the announcements addressed to you. */
   ANNOUNCEMENT_VIEW: 'ANNOUNCEMENT_VIEW',
   /** Draft a new announcement of any type, including a meeting notice. */

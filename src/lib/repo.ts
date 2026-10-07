@@ -1,5 +1,5 @@
 import { prisma, type Db } from './prisma';
-import { visibilityWhere } from './authz';
+import { scopeWhere } from './authz';
 import type { Prisma } from '@/generated/prisma/client';
 import {
   AuditLogEntry,
@@ -350,7 +350,7 @@ export async function lockMatter(db: Db, id: string): Promise<void> {
 /** Every matter the caller is entitled to see, newest first. */
 export async function listVisibleMatters(user: User): Promise<BODMatter[]> {
   const rows = await prisma.matter.findMany({
-    where: visibilityWhere(user),
+    where: await scopeWhere(user),
     include: MATTER_INCLUDE,
     orderBy: { createdAt: 'desc' },
   });

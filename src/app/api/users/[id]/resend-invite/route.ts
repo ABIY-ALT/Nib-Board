@@ -1,11 +1,11 @@
 import { requireUser, HttpError } from '@/lib/auth';
-import { assertRole } from '@/lib/authz';
 import { handle, readJson } from '@/lib/handler';
 import { transaction } from '@/lib/prisma';
 import { assertSameOrigin, clientIp, recordAuthEvent, userAgent, appOrigin } from '@/lib/security';
-import { USER_ADMIN_ROLES } from '@/lib/users';
 import { createSetupToken } from '@/lib/setup-token';
 import { sendSetupEmail, sendPasswordResetEmail } from '@/lib/email';
+import { assertPermission } from '@/lib/permissions.server';
+import { PERMISSIONS } from '@/lib/permissions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -23,10 +23,10 @@ export async function POST(req: Request, { params }: Params) {
     assertSameOrigin(req);
 
     const actor = await requireUser();
-    assertRole(
+    await assertPermission(
       actor,
-      USER_ADMIN_ROLES,
-      'Only an administrator or the Board Secretariat may resend invitations.'
+      PERMISSIONS.ADMINISTER_USERS,
+      'Access Denied: your role does not hold the "Administer officer accounts" permission.'
     );
 
     const { id } = await params;

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import Image from 'next/image';
+import { NibLogoImage } from '@/components/ui/NibLogoImage';
 import { useSearchParams } from 'next/navigation';
 import { KeyRound, ShieldCheck, AlertTriangle, Check, Loader2, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { passwordRules } from '@/lib/password-policy';
@@ -120,14 +120,7 @@ export const SetupPasswordPage: React.FC = () => {
       <div className="min-h-screen bg-app flex items-center justify-center p-4 text-ink">
         <div className="w-full max-w-md">
           <div className="flex items-center space-x-3 mb-6">
-            <Image
-              src="/nib-logo.png"
-              alt=""
-              width={44}
-              height={44}
-              priority
-              className="w-11 h-11 rounded-(--radius-card) object-contain"
-            />
+            <NibLogoImage size={44} className="w-11 h-11 rounded-(--radius-card) object-contain" />
             <div>
               <h1 className="font-bold text-sm">NIB International Bank</h1>
               <p className="text-[11px] text-ink-3">Board Governance Portal</p>
@@ -161,14 +154,7 @@ export const SetupPasswordPage: React.FC = () => {
       <div className="min-h-screen bg-app flex items-center justify-center p-4 text-ink">
         <div className="w-full max-w-md">
           <div className="flex items-center space-x-3 mb-6">
-            <Image
-              src="/nib-logo.png"
-              alt=""
-              width={44}
-              height={44}
-              priority
-              className="w-11 h-11 rounded-(--radius-card) object-contain"
-            />
+            <NibLogoImage size={44} className="w-11 h-11 rounded-(--radius-card) object-contain" />
             <div>
               <h1 className="font-bold text-sm">NIB International Bank</h1>
               <p className="text-[11px] text-ink-3">Board Governance Portal</p>
@@ -204,14 +190,7 @@ export const SetupPasswordPage: React.FC = () => {
     <div className="min-h-screen bg-app flex items-center justify-center p-4 text-ink">
       <div className="w-full max-w-md">
         <div className="flex items-center space-x-3 mb-6">
-          <Image
-            src="/nib-logo.png"
-            alt=""
-            width={44}
-            height={44}
-            priority
-            className="w-11 h-11 rounded-(--radius-card) object-contain"
-          />
+          <NibLogoImage size={44} className="w-11 h-11 rounded-(--radius-card) object-contain" />
           <div>
             <h1 className="font-bold text-sm">NIB International Bank</h1>
             <p className="text-[11px] text-ink-3">Board Governance Portal</p>

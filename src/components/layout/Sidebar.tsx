@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import Image from 'next/image';
+import { NibLogoImage } from '@/components/ui/NibLogoImage';
 import { ChevronLeft, X } from 'lucide-react';
 import { cn } from '@/components/ui/primitives';
 import { RailRelief } from '@/components/layout/HexRelief';
@@ -37,14 +37,7 @@ interface SidebarProps {
 /** The institution's lockup. The name drops away when the rail shows icons only. */
 const Brand: React.FC<{ showName: boolean; size: number }> = ({ showName, size }) => (
   <div className="flex items-center gap-3 min-w-0">
-    <Image
-      src="/nib-logo.png"
-      alt=""
-      width={size}
-      height={size}
-      priority
-      className="rounded-lg object-contain shrink-0"
-    />
+    <NibLogoImage size={size} className="rounded-lg object-contain shrink-0" />
     {showName && (
       <div className="min-w-0 leading-tight">
         <p className="text-[12px] font-bold tracking-tight text-ink truncate">

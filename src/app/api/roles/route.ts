@@ -1,11 +1,11 @@
 import { requireUser } from '@/lib/auth';
-import { assertRole } from '@/lib/authz';
 import { handle, readJson, badRequest, conflict } from '@/lib/handler';
-import { prisma } from '@/lib/prisma';
+import { prisma, transaction } from '@/lib/prisma';
 import { ALL_PERMISSION_ACTIONS } from '@/lib/roles';
 import { listRoles } from '@/lib/roles.server';
-import { USER_ADMIN_ROLES } from '@/lib/users';
 import { assertSameOrigin, recordAuthEvent, clientIp, userAgent } from '@/lib/security';
+import { assertAdministrationReachable, assertPermission } from '@/lib/permissions.server';
+import { PERMISSIONS } from '@/lib/permissions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -49,10 +49,10 @@ export async function POST(req: Request) {
     assertSameOrigin(req);
 
     const user = await requireUser();
-    assertRole(
+    await assertPermission(
       user,
-      USER_ADMIN_ROLES,
-      'Only Board Secretariat or an administrator may create new roles.'
+      PERMISSIONS.CONFIGURE_SETTINGS,
+      'Access Denied: your role does not hold the "Governance Settings & Classifications" permission.'
     );
 
     const body = await readJson<{
@@ -113,10 +113,10 @@ export async function PATCH(req: Request) {
     assertSameOrigin(req);
 
     const user = await requireUser();
-    assertRole(
+    await assertPermission(
       user,
-      USER_ADMIN_ROLES,
-      'Only Board Secretariat or an administrator may edit role permissions.'
+      PERMISSIONS.CONFIGURE_SETTINGS,
+      'Access Denied: your role does not hold the "Governance Settings & Classifications" permission.'
     );
 
     const body = await readJson<{
@@ -144,17 +144,31 @@ export async function PATCH(req: Request) {
     const permissions = parsePermissions(body.permissions, existing!.permissions);
     if (permissions) data.permissions = permissions;
 
-    const updated = await prisma.roleDefinition.update({
-      where: { roleKey },
-      data,
-    });
+    // The matrix is enforced, so a change here takes effect on the next request
+    // of everyone holding the role. The record names what was granted and
+    // revoked, not just the resulting list, and the change is refused if it
+    // would leave nobody able to administer the system.
+    const before = existing!.permissions;
+    const updated = await transaction(async (tx) => {
+      const row = await tx.roleDefinition.update({
+        where: { roleKey },
+        data,
+      });
+      await assertAdministrationReachable(tx);
 
-    await recordAuthEvent(prisma, {
-      event: 'ROLE_CONFIG_UPDATED',
-      userId: user.id,
-      ip: clientIp(req),
-      userAgent: userAgent(req),
-      detail: `Updated permissions for role: ${updated.label} (${roleKey}). Permissions: [${updated.permissions.join(', ')}].`,
+      const granted = row.permissions.filter((p) => !before.includes(p));
+      const revoked = before.filter((p) => !row.permissions.includes(p));
+      await recordAuthEvent(tx, {
+        event: 'ROLE_CONFIG_UPDATED',
+        userId: user.id,
+        ip: clientIp(req),
+        userAgent: userAgent(req),
+        detail:
+          `Updated permissions for role: ${row.label} (${roleKey}). ` +
+          `Granted: [${granted.join(', ')}]. Revoked: [${revoked.join(', ')}]. ` +
+          `Now: [${row.permissions.join(', ')}].`,
+      });
+      return row;
     });
 
     return {
@@ -173,10 +187,10 @@ export async function DELETE(req: Request) {
     assertSameOrigin(req);
 
     const user = await requireUser();
-    assertRole(
+    await assertPermission(
       user,
-      USER_ADMIN_ROLES,
-      'Only Board Secretariat or an administrator may delete roles.'
+      PERMISSIONS.CONFIGURE_SETTINGS,
+      'Access Denied: your role does not hold the "Governance Settings & Classifications" permission.'
     );
 
     const body = await readJson<{ roleKey?: string }>(req);

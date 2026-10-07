@@ -4,6 +4,8 @@ import { handle, readJson, badRequest } from '@/lib/handler';
 import { transaction } from '@/lib/prisma';
 import { getMatter, getUser, appendAudit, lockMatter, notify, generateId } from '@/lib/repo';
 import { MatterStatus } from '@/lib/types';
+import { assertPermission } from '@/lib/permissions.server';
+import { PERMISSIONS } from '@/lib/permissions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,6 +18,13 @@ export async function POST(req: Request, { params }: Params) {
     const user = await requireUser();
     const { id } = await params;
     await assertMatterAccess(user, id);
+    // The role must hold the permission; the workflow rules below still decide
+    // which matters it applies to.
+    await assertPermission(
+      user,
+      PERMISSIONS.REQUEST_CLARIFICATION,
+      'Access Denied: your role does not hold the "Issue Direction / Clarification" permission.'
+    );
 
     const { targetUserId, question } = await readJson<{
       targetUserId?: string;

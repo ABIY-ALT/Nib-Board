@@ -18,6 +18,7 @@ import {
 import { Card, CardHeader, Button, Field, inputClass, modalOverlayClass, cn } from '@/components/ui/primitives';
 import { useAuth, useAuthenticatedUser } from '@/context/AuthContext';
 import { AppRole, PermissionAction, ALL_PERMISSION_ACTIONS } from '@/lib/roles';
+import { PERMISSIONS } from '@/lib/permissions';
 
 export const RolesMatrix: React.FC = () => {
   const user = useAuthenticatedUser();
@@ -36,7 +37,8 @@ export const RolesMatrix: React.FC = () => {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
-  const canEdit = user.role === 'BOARD_SECRETARIAT' || user.role === 'ADMIN';
+  const { can } = useAuth();
+  const canEdit = can(PERMISSIONS.CONFIGURE_SETTINGS);
 
   const loadRoles = async () => {
     setLoading(true);
@@ -169,7 +171,7 @@ export const RolesMatrix: React.FC = () => {
     <Card className="overflow-hidden border border-line">
       <CardHeader
         title="Roles & Permissions Configuration"
-        description="Configure institutional roles and customize operational permissions."
+        description="Enforced on every request: a change applies to everyone holding the role on their next action. Matter permissions still follow the workflow — a role can only route, report on or close matters within its own scope."
         icon={<ShieldCheck className="w-4 h-4 text-nib-gold-600" />}
         action={
           canEdit ? (

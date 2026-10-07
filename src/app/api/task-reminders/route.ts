@@ -1,5 +1,5 @@
 import { requireUser, HttpError } from '@/lib/auth';
-import { assertMatterAccess, visibilityWhere } from '@/lib/authz';
+import { assertMatterAccess, scopeWhere } from '@/lib/authz';
 import { handle, readJson, badRequest } from '@/lib/handler';
 import { prisma, transaction } from '@/lib/prisma';
 import { appendAudit, generateId, notify } from '@/lib/repo';
@@ -37,7 +37,7 @@ const toIsoStamp = (v: Date | null) => (v === null ? '' : v.toISOString());
 /**
  * The task reminder queue.
  *
- * Everything here is scoped by `visibilityWhere` — the same predicate the matter
+ * Everything here is scoped by `scopeWhere` — the same predicate the matter
  * list and the metrics use — so holding TASK_REMINDER_VIEW never widens what
  * Board matters somebody can see. The permission decides whether they get the
  * chasing view at all; their organizational scope still decides what is in it.
@@ -62,7 +62,7 @@ export async function GET() {
     const rows = await prisma.matter.findMany({
       where: {
         AND: [
-          visibilityWhere(user),
+          await scopeWhere(user),
           { status: { not: 'Closed' } },
           {
             OR: [

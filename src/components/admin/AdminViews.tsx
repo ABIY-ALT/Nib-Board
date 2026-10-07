@@ -43,7 +43,6 @@ import {
 } from '@/components/ui/primitives';
 import { Column, DataTable, FilterBar } from '@/components/ui/DataTable';
 import { AuditLogEntry, BODMatter, User } from '@/lib/types';
-import { USER_ADMIN_ROLES } from '@/lib/users';
 import { UserFormModal } from '@/components/admin/UserFormModal';
 import { RolesMatrix } from '@/components/admin/RolesMatrix';
 import { DepartmentsManager } from '@/components/admin/DepartmentsManager';
@@ -52,6 +51,7 @@ import { DepartmentsManager } from '@/components/admin/DepartmentsManager';
 type AdminUser = User & { isActive: boolean };
 import { navItem } from '@/lib/navigation';
 import { ROLE_LABEL, formatDateTime, matchesQuery } from '@/lib/matters';
+import { PERMISSIONS } from '@/lib/permissions';
 
 /* ─────────────────────────────────────────────────── Users & Roles */
 
@@ -66,11 +66,11 @@ const ROLE_TONE: Record<string, string> = {
 };
 
 export const UsersView: React.FC = () => {
-  const { allUsers, matters, refreshUsers } = useAuth();
+  const { allUsers, matters, refreshUsers, can } = useAuth();
   const viewer = useAuthenticatedUser();
   const item = navItem('users')!;
 
-  const canAdminister = USER_ADMIN_ROLES.includes(viewer.role);
+  const canAdminister = can(PERMISSIONS.ADMINISTER_USERS);
 
   const [query, setQuery] = useState('');
   const [role, setRole] = useState('ALL');
@@ -416,7 +416,7 @@ export const UsersView: React.FC = () => {
 
 
 export const SettingsView: React.FC = () => {
-  const { matterTypes, addMatterType, removeMatterType, matters } = useAuth();
+  const { matterTypes, addMatterType, removeMatterType, matters, can } = useAuth();
   const user = useAuthenticatedUser();
   const item = navItem('settings')!;
   
@@ -426,7 +426,9 @@ export const SettingsView: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [deletingType, setDeletingType] = useState<string | null>(null);
 
-  const canConfigure = user.role === 'BOARD_SECRETARIAT' || user.role === 'ADMIN';
+  const canConfigure = can(PERMISSIONS.CONFIGURE_SETTINGS);
+  // The log endpoint answers to its own permission, not to settings access.
+  const canViewAuditLog = can(PERMISSIONS.VIEW_AUDIT_TRAIL);
 
   const usage = useMemo(() => {
     const map = new Map<string, number>();
@@ -515,18 +517,20 @@ export const SettingsView: React.FC = () => {
               <Lock className="w-3.5 h-3.5" />
               <span>Classifications & Security</span>
             </button>
-            <button
-              onClick={() => setActiveTab('AUDIT')}
-              className={cn(
-                'px-3 py-1.5 rounded-md text-xs font-semibold transition flex items-center gap-1.5',
-                activeTab === 'AUDIT'
-                  ? 'bg-nib-gold-500 text-nib-brown-950 shadow-xs'
-                  : 'text-ink-2 hover:text-ink hover:bg-surface-2'
-              )}
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5" />
-              <span>Administrative Audit Log</span>
-            </button>
+            {canViewAuditLog && (
+              <button
+                onClick={() => setActiveTab('AUDIT')}
+                className={cn(
+                  'px-3 py-1.5 rounded-md text-xs font-semibold transition flex items-center gap-1.5',
+                  activeTab === 'AUDIT'
+                    ? 'bg-nib-gold-500 text-nib-brown-950 shadow-xs'
+                    : 'text-ink-2 hover:text-ink hover:bg-surface-2'
+                )}
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>Administrative Audit Log</span>
+              </button>
+            )}
           </div>
         }
       />
@@ -641,7 +645,7 @@ export const SettingsView: React.FC = () => {
         </div>
       )}
 
-      {activeTab === 'AUDIT' && (
+      {activeTab === 'AUDIT' && canViewAuditLog && (
         <div>
           <GovernanceAuditLogCard />
         </div>

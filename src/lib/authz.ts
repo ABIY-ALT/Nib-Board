@@ -1,5 +1,7 @@
 import { prisma, type Db } from './prisma';
 import { HttpError } from './auth';
+import { hasPermission, PERMISSIONS } from './permissions';
+import { getPermissions } from './permissions.server';
 import { Role, User } from './types';
 import type { Prisma } from '@/generated/prisma/client';
 
@@ -12,21 +14,41 @@ import type { Prisma } from '@/generated/prisma/client';
  * directorate's matter by editing the id in the URL. Compose it with `AND`
  * rather than spreading it into a larger object, so a caller cannot accidentally
  * overwrite one of its keys and widen the scope.
+ *
+ * Bank-wide visibility is the `see_all` permission, granted in Roles &
+ * Permissions — out of the box to the Board Secretariat, Board Members, the CEO,
+ * CEO Secretariat and administrators. Without it, a role falls back to its
+ * organizational scope below. `permissions` must be the role's current grant,
+ * read on the server (`getPermissions`), never anything the browser sent.
  */
-export function visibilityWhere(user: User): Prisma.MatterWhereInput {
+export function visibilityWhere(
+  user: Pick<User, 'id' | 'role' | 'businessArea'>,
+  permissions: readonly string[]
+): Prisma.MatterWhereInput {
+  if (hasPermission(permissions, PERMISSIONS.SEE_ALL)) return {};
+
   const routedThroughMe: Prisma.MatterWhereInput = {
     workflowNodes: { some: { userId: user.id } },
   };
 
   switch (user.role) {
-    // Institutional oversight: the Board's own secretariat, Board Members,
-    // the CEO, CEO Secretariat and administrators see every Board matter bank-wide.
+    // An oversight role whose `see_all` has been withdrawn keeps the matters it
+    // is named on or that passed through its hands — enough to finish what it
+    // holds, and nothing bank-wide.
     case 'BOARD_SECRETARIAT':
     case 'BOARD_MEMBER':
     case 'CEO':
     case 'CEO_SECRETARIAT':
     case 'ADMIN':
-      return {};
+      return {
+        OR: [
+          { currentOwnerId: user.id },
+          { responsibleChiefId: user.id },
+          { responsibleDeputyChiefId: user.id },
+          { responsibleDirectorId: user.id },
+          routedThroughMe,
+        ],
+      };
 
     // A Chief owns their business area, plus anything routed through them.
     case 'CHIEF':
@@ -72,10 +94,22 @@ export function visibilityWhere(user: User): Prisma.MatterWhereInput {
   }
 }
 
+/** The visibility rule for this user, with their role's permissions read now. */
+export async function scopeWhere(
+  user: Pick<User, 'id' | 'role' | 'businessArea'>,
+  db: Db = prisma
+): Promise<Prisma.MatterWhereInput> {
+  return visibilityWhere(user, await getPermissions(user, db));
+}
+
 /** Does this matter fall inside the caller's organizational scope? */
-export async function canAccessMatter(user: User, matterId: string, db: Db = prisma): Promise<boolean> {
+export async function canAccessMatter(
+  user: Pick<User, 'id' | 'role' | 'businessArea'>,
+  matterId: string,
+  db: Db = prisma
+): Promise<boolean> {
   const hit = await db.matter.findFirst({
-    where: { AND: [{ id: matterId }, visibilityWhere(user)] },
+    where: { AND: [{ id: matterId }, await scopeWhere(user, db)] },
     select: { id: true },
   });
   return hit !== null;
@@ -99,17 +133,10 @@ export async function assertMatterAccess(user: User, matterId: string): Promise<
   }
 }
 
-/** Restricts an action to a set of roles. */
-export function assertRole(user: User, roles: Role[], message: string): void {
-  if (!roles.includes(user.role)) {
-    throw new HttpError(403, message);
-  }
-}
-
 /** Ids of every matter visible to the caller — used by metrics and reporting. */
 export async function visibleMatterIds(user: User): Promise<string[]> {
   const rows = await prisma.matter.findMany({
-    where: visibilityWhere(user),
+    where: await scopeWhere(user),
     select: { id: true },
   });
   return rows.map((r) => r.id);
@@ -135,11 +162,7 @@ export async function filterNotifiableUsers(
 
   const allowed: string[] = [];
   for (const candidate of candidates) {
-    const asUser = {
-      id: candidate.id,
-      role: candidate.role as Role,
-      businessArea: candidate.businessArea,
-    } as User;
+    const asUser = { ...candidate, role: candidate.role as Role };
     if (await canAccessMatter(asUser, matterId, db)) allowed.push(candidate.id);
   }
   return allowed;
