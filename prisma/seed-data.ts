@@ -356,6 +356,7 @@ export const INITIAL_MATTERS: BODMatter[] = [
     ],
     
     clarifications: [],
+    escalations: [],
     createdAt: '2026-07-17T09:00:00Z',
     createdBy: 'usr_sec_1',
     createdByName: 'Rahel Solomon',
@@ -480,6 +481,7 @@ export const INITIAL_MATTERS: BODMatter[] = [
     ],
     
     clarifications: [],
+    escalations: [],
     createdAt: '2026-07-30T10:00:00Z',
     createdBy: 'usr_sec_1',
     createdByName: 'Rahel Solomon',
@@ -693,6 +695,7 @@ export const INITIAL_MATTERS: BODMatter[] = [
     ],
     
     clarifications: [],
+    escalations: [],
     createdAt: '2026-05-22T08:30:00Z',
     createdBy: 'usr_sec_1',
     createdByName: 'Rahel Solomon',
@@ -833,6 +836,7 @@ export const INITIAL_MATTERS: BODMatter[] = [
         status: 'OPEN',
       },
     ],
+    escalations: [],
     createdAt: '2026-08-04T09:00:00Z',
     createdBy: 'usr_sec_1',
     createdByName: 'Rahel Solomon',
@@ -940,6 +944,7 @@ export const INITIAL_MATTERS: BODMatter[] = [
     ],
     
     clarifications: [],
+    escalations: [],
     createdAt: '2026-08-10T14:00:00Z',
     createdBy: 'usr_sec_1',
     createdByName: 'Rahel Solomon',
@@ -1028,6 +1033,7 @@ export const INITIAL_MATTERS: BODMatter[] = [
     ],
     
     clarifications: [],
+    escalations: [],
     createdAt: '2026-08-16T11:00:00Z',
     createdBy: 'usr_sec_1',
     createdByName: 'Rahel Solomon',

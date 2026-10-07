@@ -688,6 +688,8 @@ const EVENT_PILL_STYLE: Record<string, string> = {
   PASSWORD_RESET: 'bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800',
   ACCOUNT_LOCKED: 'bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800',
   LOGIN_FAILED: 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
+  MATTER_ESCALATED: 'bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800',
+  ESCALATION_RESOLVED: 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800',
 };
 
 /** Human labels for the event types the record actually contains. */
@@ -712,6 +714,8 @@ const EVENT_LABEL: Record<string, string> = {
   LOGIN_BLOCKED_RATE_LIMIT: 'Sign-in Blocked (Rate Limit)',
   LOGOUT: 'Sign-out',
   TASK_REMINDER_SENT: 'Task Reminder Sent',
+  MATTER_ESCALATED: 'Matter Escalated',
+  ESCALATION_RESOLVED: 'Escalation Resolved',
   ANNOUNCEMENT_CREATED: 'Announcement Drafted',
   ANNOUNCEMENT_UPDATED: 'Announcement Amended',
   ANNOUNCEMENT_PUBLISHED: 'Announcement Published',
@@ -1117,6 +1121,8 @@ const ACTION_TONE: Record<string, string> = {
   'Completion Confirmed': 'bg-st-done',
   'Completion Reviewed': 'bg-st-review',
   'Matter Closed': 'bg-st-done',
+  'Matter Escalated': 'bg-st-late',
+  'Escalation Resolved': 'bg-st-done',
 };
 
 export const AuditTrailView: React.FC<{ onSelectMatter: (m: BODMatter) => void }> = ({

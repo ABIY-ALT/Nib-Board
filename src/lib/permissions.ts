@@ -41,6 +41,8 @@ export const PERMISSIONS = {
   CONFIRM_COMPLETION: 'confirm_completion',
   /** Formally close a confirmed matter. */
   CLOSE_MATTER: 'close_matter',
+  /** Escalate a stuck matter to a senior officer, and resolve an escalation. */
+  ESCALATE_MATTER: 'escalate_matter',
   /** Executive analytics, SLA and report screens. */
   VIEW_ANALYTICS: 'view_analytics',
   /** The institution-wide system audit log. */

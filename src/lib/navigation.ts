@@ -61,7 +61,8 @@ export interface NavItem {
     | 'decisions'
     | 'closed'
     | 'announcements'
-    | 'reminders';
+    | 'reminders'
+    | 'escalated';
   /** When set, only these roles see the item. The API is authoritative regardless. */
   roles?: Role[];
   /**
@@ -180,9 +181,11 @@ export const NAV_GROUPS: NavGroup[] = [
         id: 'escalated',
         label: 'Escalated Matters',
         icon: TrendingUp,
+        badge: 'escalated',
         title: 'Escalated Matters',
-        description: 'Matters formally escalated for management attention.',
-        roles: ['BOARD_SECRETARIAT', 'BOARD_MEMBER', 'CEO', 'CEO_SECRETARIAT', 'CHIEF'],
+        description:
+          'Matters formally raised to the CEO, a Chief or the Board Secretariat for management attention, and who raised them.',
+        roles: ['BOARD_SECRETARIAT', 'BOARD_MEMBER', 'CEO', 'CEO_SECRETARIAT', 'CHIEF', 'DEPUTY_CHIEF', 'DIRECTOR'],
       },
     ],
   },

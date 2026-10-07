@@ -19,6 +19,8 @@ export interface NavCounts {
   announcements?: number;
   /** Matters in the reminder queue that are already past their deadline. */
   reminders?: number;
+  /** Open matters with an open escalation. */
+  escalated?: number;
 }
 
 interface SidebarProps {
@@ -98,7 +100,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     const Icon = item.icon;
     const on = active === item.id;
     const badge = badgeFor(item);
-    const urgent = item.badge === 'overdue' || item.badge === 'reminders';
+    const urgent =
+      item.badge === 'overdue' || item.badge === 'reminders' || item.badge === 'escalated';
 
     return (
       <button

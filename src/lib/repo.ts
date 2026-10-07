@@ -7,6 +7,7 @@ import {
   ClarificationThread,
   Document,
   ImplementationReport,
+  MatterEscalation,
   MatterStatus,
   Role,
   User,
@@ -186,6 +187,14 @@ const MATTER_INCLUDE = {
       reviewedBy: { select: { name: true, role: true, title: true } },
     },
   },
+  escalations: {
+    orderBy: { escalatedAt: 'desc' },
+    include: {
+      escalatedBy: { select: { name: true, title: true } },
+      escalatedTo: { select: { name: true, title: true, role: true } },
+      resolvedBy: { select: { name: true } },
+    },
+  },
 } satisfies Prisma.MatterInclude;
 
 type MatterRow = Prisma.MatterGetPayload<{ include: typeof MATTER_INCLUDE }>;
@@ -240,6 +249,23 @@ function toMatter(r: MatterRow): BODMatter {
     response: c.response ?? undefined,
     responseBy: c.responseById ?? undefined,
     responseByName: c.responseBy?.name ?? undefined,
+  }));
+
+  const escalations: MatterEscalation[] = r.escalations.map((e) => ({
+    id: e.id,
+    escalatedById: e.escalatedById,
+    escalatedByName: e.escalatedBy.name,
+    escalatedByTitle: e.escalatedBy.title,
+    escalatedToId: e.escalatedToId,
+    escalatedToName: e.escalatedTo.name,
+    escalatedToTitle: e.escalatedTo.title,
+    escalatedToRole: e.escalatedTo.role as Role,
+    escalatedAt: toIsoStamp(e.escalatedAt),
+    reason: e.reason,
+    status: e.status as MatterEscalation['status'],
+    resolvedByName: e.resolvedBy?.name ?? undefined,
+    resolvedAt: e.resolvedAt ? toIsoStamp(e.resolvedAt) : undefined,
+    resolutionNote: e.resolutionNote ?? undefined,
   }));
 
   const rep = r.implementationReport;
@@ -320,6 +346,7 @@ function toMatter(r: MatterRow): BODMatter {
     implementationReport,
     routingPath,
     clarifications,
+    escalations,
     createdAt: toIsoStamp(r.createdAt),
     createdBy: r.createdBy,
     createdByName: r.creator.name,

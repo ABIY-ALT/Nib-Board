@@ -1,5 +1,6 @@
 import { BODMatter, User } from './types';
 import { ViewId } from './navigation';
+import { isEscalated } from './escalations';
 
 /** Matters still in play — closed records drop out of every work queue. */
 export const isOpen = (m: BODMatter) => m.status !== 'Closed';
@@ -44,6 +45,8 @@ export function mattersForView(view: ViewId, matters: BODMatter[], user: User): 
       return matters.filter((m) => awaitsAction(m, user));
     case 'overdue':
       return matters.filter(isOverdue);
+    case 'escalated':
+      return matters.filter((m) => isOpen(m) && isEscalated(m));
     case 'implementation':
       return matters.filter(
         (m) => m.status !== 'Received' && m.status !== 'Under Review'
@@ -69,6 +72,7 @@ export function navCounts(
     // The reminder badge counts what is actually late, not the whole queue:
     // a badge that is never zero stops being read.
     reminders: matters.filter(isOverdue).length,
+    escalated: matters.filter((m) => isOpen(m) && isEscalated(m)).length,
   };
 }
 

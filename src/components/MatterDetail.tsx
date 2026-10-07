@@ -16,6 +16,7 @@ import {
   Paperclip,
   Send,
   ShieldCheck,
+  TrendingUp,
   Upload,
   UserCheck,
   Download,
@@ -39,6 +40,7 @@ import {
 import { AuditLogEntry, BODMatter, ClarificationThread } from '@/lib/types';
 import { ROLE_LABEL, daysOpen, formatDate, formatDateTime } from '@/lib/matters';
 import { PERMISSIONS } from '@/lib/permissions';
+import { escalationAge, openEscalation } from '@/lib/escalations';
 
 interface MatterDetailProps {
   matter: BODMatter;
@@ -49,6 +51,8 @@ interface MatterDetailProps {
   onOpenConfirmModal: () => void;
   onOpenCloseModal: () => void;
   onOpenUploadModal: () => void;
+  onOpenEscalateModal: () => void;
+  onOpenResolveEscalationModal: () => void;
   onOpenClarificationReplyModal: (thread: ClarificationThread) => void;
 }
 
@@ -81,6 +85,8 @@ export const MatterDetail: React.FC<MatterDetailProps> = ({
   onOpenConfirmModal,
   onOpenCloseModal,
   onOpenUploadModal,
+  onOpenEscalateModal,
+  onOpenResolveEscalationModal,
   onOpenClarificationReplyModal,
 }) => {
   const { refreshMatters, refreshMetrics, can } = useAuth();
@@ -144,6 +150,12 @@ export const MatterDetail: React.FC<MatterDetailProps> = ({
   const canClarify = !isClosed && can(PERMISSIONS.REQUEST_CLARIFICATION);
   const canAttach = !isClosed && can(PERMISSIONS.ATTACH_DOCUMENT);
   const canReply = can(PERMISSIONS.REPLY_CLARIFICATION);
+  const escalation = openEscalation(matter);
+  const canEscalate = !isClosed && !escalation && can(PERMISSIONS.ESCALATE_MATTER);
+  // The officer it was escalated to can always settle it; anyone else needs
+  // the permission. The API applies the same rule.
+  const canResolveEscalation =
+    Boolean(escalation) && (escalation!.escalatedToId === user.id || can(PERMISSIONS.ESCALATE_MATTER));
 
   const accept = async () => {
     setAccepting(true);
@@ -182,6 +194,12 @@ export const MatterDetail: React.FC<MatterDetailProps> = ({
             {matter.isOverdue && !isClosed && (
               <span className="text-[11px] font-bold text-st-late uppercase tracking-wide">
                 Overdue
+              </span>
+            )}
+            {escalation && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-st-late uppercase tracking-wide">
+                <TrendingUp className="w-3.5 h-3.5" aria-hidden="true" />
+                Escalated
               </span>
             )}
           </div>
@@ -229,6 +247,33 @@ export const MatterDetail: React.FC<MatterDetailProps> = ({
               {canAttach && (
                 <Button variant="secondary" onClick={onOpenUploadModal} icon={<Upload className="w-3.5 h-3.5" />}>
                   Attach document
+                </Button>
+              )}
+              {canEscalate && (
+                <Button variant="secondary" onClick={onOpenEscalateModal} icon={<TrendingUp className="w-3.5 h-3.5" />}>
+                  Escalate
+                </Button>
+              )}
+            </div>
+          )}
+
+          {escalation && (
+            <div className="mt-3 flex items-start gap-2.5 bg-st-late-bg border border-st-late/25 rounded-(--radius-control) px-3 py-2.5">
+              <TrendingUp className="w-4 h-4 text-st-late shrink-0 mt-0.5" aria-hidden="true" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[12px] font-semibold text-ink">
+                  Escalated to {escalation.escalatedToName}
+                  <span className="font-normal text-ink-2"> · {escalation.escalatedToTitle}</span>
+                </p>
+                <p className="text-[11px] text-ink-3 tabular">
+                  by {escalation.escalatedByName} on {formatDateTime(escalation.escalatedAt)} · open{' '}
+                  {escalationAge(escalation) === 'today' ? 'since today' : `for ${escalationAge(escalation)}`}
+                </p>
+                <p className="text-[12px] text-ink-2 mt-0.5 whitespace-pre-wrap">{escalation.reason}</p>
+              </div>
+              {canResolveEscalation && (
+                <Button size="sm" variant="secondary" onClick={onOpenResolveEscalationModal}>
+                  Resolve
                 </Button>
               )}
             </div>
@@ -380,6 +425,49 @@ export const MatterDetail: React.FC<MatterDetailProps> = ({
                 ))}
               </dl>
             </Card>
+
+            {matter.escalations.length > 0 && (
+              <Card className="lg:col-span-3">
+                <CardHeader
+                  title="Escalation History"
+                  description="Every time this matter was raised for management attention, and how it ended."
+                  icon={<TrendingUp className="w-4 h-4" />}
+                />
+                <ul className="divide-y divide-line">
+                  {matter.escalations.map((e) => (
+                    <li key={e.id} className="px-4 py-3">
+                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                        <span
+                          className={cn(
+                            'text-[10px] font-bold uppercase tracking-wide',
+                            e.status === 'OPEN' ? 'text-st-late' : 'text-st-done'
+                          )}
+                        >
+                          {e.status === 'OPEN' ? 'Open' : 'Resolved'}
+                        </span>
+                        <span className="text-[13px] text-ink">
+                          {e.escalatedByName} → <strong>{e.escalatedToName}</strong>
+                          <span className="text-ink-3"> · {e.escalatedToTitle}</span>
+                        </span>
+                        <span className="text-[11px] text-ink-3 tabular">{formatDateTime(e.escalatedAt)}</span>
+                      </div>
+                      <p className="text-[12px] text-ink-2 mt-1 whitespace-pre-wrap">{e.reason}</p>
+                      {e.status === 'RESOLVED' && (
+                        <p className="text-[12px] text-ink-2 mt-1.5 bg-surface-2 border border-line rounded-md px-2.5 py-1.5">
+                          <span className="font-semibold text-ink">
+                            Resolved by {e.resolvedByName ?? '—'}
+                          </span>
+                          {e.resolvedAt && (
+                            <span className="text-ink-3 tabular"> · {formatDateTime(e.resolvedAt)}</span>
+                          )}
+                          {e.resolutionNote && <span className="block mt-0.5">{e.resolutionNote}</span>}
+                        </p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
           </div>
         )}
 

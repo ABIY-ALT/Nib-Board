@@ -94,7 +94,9 @@ export interface AuditLogEntry {
     // matter's own trail beside every other action rather than in a record of
     // its own. audit_logs.action has never been constrained, so no migration
     // is needed to add one.
-    | 'Reminder Sent';
+    | 'Reminder Sent'
+    | 'Matter Escalated'
+    | 'Escalation Resolved';
   previousOwner?: {
     id: string;
     name: string;
@@ -174,6 +176,27 @@ export interface ClarificationThread {
   responseByName?: string;
 }
 
+/**
+ * A matter raised to a senior officer's attention. It flags the matter without
+ * changing who owns it or where it sits in the workflow.
+ */
+export interface MatterEscalation {
+  id: string;
+  escalatedById: string;
+  escalatedByName: string;
+  escalatedByTitle: string;
+  escalatedToId: string;
+  escalatedToName: string;
+  escalatedToTitle: string;
+  escalatedToRole: Role;
+  escalatedAt: string;
+  reason: string;
+  status: 'OPEN' | 'RESOLVED';
+  resolvedByName?: string;
+  resolvedAt?: string;
+  resolutionNote?: string;
+}
+
 export interface BODMatter {
   id: string; // e.g. BOD-2026-001
   resolutionNumber: string; // e.g. NIB/BOD/RES/2026/042
@@ -228,6 +251,8 @@ export interface BODMatter {
   implementationReport?: ImplementationReport;
   routingPath: WorkflowNode[];
   clarifications: ClarificationThread[];
+  /** Every escalation on this matter, newest first. At most one is OPEN. */
+  escalations: MatterEscalation[];
   createdAt: string;
   createdBy: string;
   createdByName: string;
@@ -260,6 +285,7 @@ export interface AppNotification {
     | 'COMPLETION_CONFIRMED'
     | 'STATUS_CHANGE'
     | 'TASK_REMINDER'
+    | 'ESCALATION'
     | 'ANNOUNCEMENT';
   /** Normal | Important | Urgent — inherited from the announcement, if any. */
   priority: 'Normal' | 'Important' | 'Urgent';

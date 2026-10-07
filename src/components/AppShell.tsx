@@ -8,7 +8,7 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { TopHeader } from '@/components/layout/TopHeader';
 import { GroundRelief } from '@/components/layout/HexRelief';
 import { Dashboard } from '@/components/dashboard/Dashboard';
-import { MattersView, EscalatedView } from '@/components/governance/MattersView';
+import { MattersView } from '@/components/governance/MattersView';
 import { OverviewView, SlaView } from '@/components/monitoring/MonitoringViews';
 import { UsersView, SettingsView, AuditTrailView } from '@/components/admin/AdminViews';
 import { AnnouncementsView } from '@/components/communications/AnnouncementsView';
@@ -25,6 +25,7 @@ import { ConfirmCompletionModal } from '@/components/ConfirmCompletionModal';
 import { CloseMatterModal } from '@/components/CloseMatterModal';
 import { ClarificationModal } from '@/components/ClarificationModal';
 import { UploadDocumentModal } from '@/components/UploadDocumentModal';
+import { EscalationModal, type EscalationMode } from '@/components/EscalationModal';
 import { BODMatter, ClarificationThread } from '@/lib/types';
 import { ViewId, canSeeView } from '@/lib/navigation';
 import { navCounts } from '@/lib/matters';
@@ -51,6 +52,7 @@ const Workspace: React.FC = () => {
   const [closeOpen, setCloseOpen] = useState(false);
   const [clarifyOpen, setClarifyOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [escalation, setEscalation] = useState<EscalationMode | null>(null);
   const [replyThread, setReplyThread] = useState<ClarificationThread | null>(null);
 
   // Server unreachable — show the maintenance page before any auth gate.
@@ -82,6 +84,7 @@ const Workspace: React.FC = () => {
         closeOpen, setCloseOpen,
         clarifyOpen, setClarifyOpen,
         uploadOpen, setUploadOpen,
+        escalation, setEscalation,
         replyThread, setReplyThread,
       }}
     />
@@ -159,6 +162,7 @@ const SignedIn: React.FC<SignedInProps> = ({
       case 'my-tasks':
       case 'pending-actions':
       case 'overdue':
+      case 'escalated':
       case 'implementation':
         return (
           <MattersView
@@ -167,8 +171,6 @@ const SignedIn: React.FC<SignedInProps> = ({
             onRegister={() => modals.setRegisterOpen(true)}
           />
         );
-      case 'escalated':
-        return <EscalatedView onNavigateOverdue={() => navigate('overdue')} />;
       case 'announcements':
         return <AnnouncementsView onOpenMatter={openMatterById} />;
       case 'task-reminders':
@@ -199,6 +201,8 @@ const SignedIn: React.FC<SignedInProps> = ({
             onOpenConfirmModal={() => modals.setConfirmOpen(true)}
             onOpenCloseModal={() => modals.setCloseOpen(true)}
             onOpenUploadModal={() => modals.setUploadOpen(true)}
+            onOpenEscalateModal={() => modals.setEscalation('escalate')}
+            onOpenResolveEscalationModal={() => modals.setEscalation('resolve')}
             onOpenClarificationReplyModal={(t: ClarificationThread) => {
               modals.setReplyThread(t);
               modals.setClarifyOpen(true);
@@ -307,6 +311,12 @@ const SignedIn: React.FC<SignedInProps> = ({
             onClose={() => modals.setUploadOpen(false)}
             matter={active}
             onSuccess={() => {}}
+          />
+          <EscalationModal
+            isOpen={modals.escalation !== null}
+            mode={modals.escalation ?? 'escalate'}
+            onClose={() => modals.setEscalation(null)}
+            matter={active}
           />
         </>
       )}

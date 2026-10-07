@@ -29,6 +29,7 @@ import {
   overdueBucket,
 } from '@/lib/matters';
 import { PERMISSIONS } from '@/lib/permissions';
+import { escalationAge, openEscalation } from '@/lib/escalations';
 
 interface MattersViewProps {
   view: ViewId;
@@ -111,6 +112,7 @@ export const MattersView: React.FC<MattersViewProps> = ({ view, onSelectMatter, 
   // The type filter is redundant on views that are already one type.
   const isTypeView = view === 'decisions' || view === 'directives' || view === 'resolutions';
   const showProgress = view === 'implementation';
+  const showEscalation = view === 'escalated';
 
   const columns: Array<Column<BODMatter>> = [
     {
@@ -140,6 +142,31 @@ export const MattersView: React.FC<MattersViewProps> = ({ view, onSelectMatter, 
         </div>
       ),
     },
+    ...(showEscalation
+      ? [
+          {
+            key: 'escalation',
+            header: 'Escalated To',
+            sortValue: (m: BODMatter) => openEscalation(m)?.escalatedAt ?? '',
+            className: 'min-w-[12rem] max-w-[18rem]',
+            render: (m: BODMatter) => {
+              const e = openEscalation(m);
+              if (!e) return '—';
+              return (
+                <div className="min-w-0">
+                  <div className="text-ink truncate">{e.escalatedToName}</div>
+                  <div className="text-[11px] text-ink-3 truncate">
+                    by {e.escalatedByName} · {escalationAge(e) === 'today' ? 'today' : `${escalationAge(e)} ago`}
+                  </div>
+                  <div className="text-[11px] text-ink-2 line-clamp-1" title={e.reason}>
+                    {e.reason}
+                  </div>
+                </div>
+              );
+            },
+          } as Column<BODMatter>,
+        ]
+      : []),
     {
       key: 'owner',
       header: 'Current Owner',
@@ -361,7 +388,13 @@ export const MattersView: React.FC<MattersViewProps> = ({ view, onSelectMatter, 
           }
           empty={
             <EmptyState
-              icon={view === 'incoming' ? <Inbox className="w-5 h-5" /> : undefined}
+              icon={
+                view === 'incoming' ? (
+                  <Inbox className="w-5 h-5" />
+                ) : view === 'escalated' ? (
+                  <TrendingUp className="w-5 h-5" />
+                ) : undefined
+              }
               title={emptyTitle(view, scoped.length > 0)}
               message={emptyMessage(view, scoped.length > 0)}
               action={
@@ -388,6 +421,8 @@ function emptyTitle(view: ViewId, filtered: boolean): string {
       return 'Nothing awaiting your action';
     case 'overdue':
       return 'Nothing is overdue';
+    case 'escalated':
+      return 'No matters are escalated';
     case 'decisions':
       return 'No Board decisions registered';
     case 'directives':
@@ -408,6 +443,8 @@ function emptyMessage(view: ViewId, filtered: boolean): string {
       return 'Every matter you own is progressing; none is waiting on you.';
     case 'overdue':
       return 'All Board matters within your scope are inside their deadlines.';
+    case 'escalated':
+      return 'To escalate a stuck or overdue matter, open it and choose Escalate. It will appear here until it is resolved or the matter is closed.';
     default:
       return 'Nothing within your organizational scope matches this view yet.';
   }
@@ -437,28 +474,3 @@ function exportCsv(rows: BODMatter[], view: string) {
   a.click();
   URL.revokeObjectURL(url);
 }
-
-/**
- * Escalation is not part of the implemented workflow: there is no escalation
- * status, actor or reason anywhere in the schema or API. Rather than invent a
- * red badge with nothing behind it, this states the position and points at the
- * view that does carry real overdue data.
- */
-export const EscalatedView: React.FC<{ onNavigateOverdue: () => void }> = ({
-  onNavigateOverdue,
-}) => {
-  const item = navItem('escalated');
-  return (
-    <div>
-      <PageHeader title={item!.title} description={item!.description} />
-      <Card>
-        <EmptyState
-          icon={<TrendingUp className="w-5 h-5" />}
-          title="Escalation is not yet part of the workflow"
-          message="No escalation status, reason or escalating officer exists in the governance model, so there is nothing authentic to list here. Overdue matters are tracked and actionable today."
-          action={<Button variant="primary" onClick={onNavigateOverdue}>View overdue matters</Button>}
-        />
-      </Card>
-    </div>
-  );
-};

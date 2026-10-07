@@ -72,6 +72,9 @@ model User {
   announcementReads      AnnouncementRead[]
   remindersReceived      TaskReminder[]     @relation("TaskReminderRecipient")
   remindersSent          TaskReminder[]     @relation("TaskReminderSentBy")
+  escalationsRaised      MatterEscalation[] @relation("EscalationRaisedBy")
+  escalationsReceived    MatterEscalation[] @relation("EscalationRaisedTo")
+  escalationsResolved    MatterEscalation[] @relation("EscalationResolvedBy")
 
   @@map("users")
 }
@@ -160,6 +163,7 @@ model Matter {
   notifications        Notification[]
   announcements        Announcement[]
   taskReminders        TaskReminder[]
+  escalations          MatterEscalation[]
 
   @@index([currentOwnerId], map: "matters_current_owner_idx")
   @@index([responsibleDirectorId], map: "matters_director_idx")
@@ -542,4 +546,36 @@ model TaskReminder {
   @@index([matterId, recipientId, sentAt(sort: Desc)], map: "task_reminders_matter_idx")
   @@index([recipientId, sentAt(sort: Desc)], map: "task_reminders_recipient_idx")
   @@map("task_reminders")
+}
+
+/// A Board matter formally raised to a senior officer's attention.
+///
+/// Escalation is a flag on the matter, not a step in its workflow: ownership,
+/// status and routing are untouched, so the matter keeps moving through the
+/// hands it is already in while the officer it was escalated to looks into why
+/// it is stuck. History is kept — a matter can be escalated, resolved and
+/// escalated again — but only one escalation can be open at a time, which a
+/// partial unique index in the migration enforces (Prisma cannot express one).
+model MatterEscalation {
+  id            String   @id
+  matterId      String   @map("matter_id")
+  escalatedById String   @map("escalated_by")
+  escalatedToId String   @map("escalated_to")
+  escalatedAt   DateTime @default(now()) @map("escalated_at") @db.Timestamptz(6)
+  reason        String
+  /// OPEN | RESOLVED. Mirrored by a CHECK constraint.
+  status        String   @default("OPEN")
+
+  resolvedById   String?   @map("resolved_by")
+  resolvedAt     DateTime? @map("resolved_at") @db.Timestamptz(6)
+  resolutionNote String?   @map("resolution_note")
+
+  matter      Matter @relation(fields: [matterId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  escalatedBy User   @relation("EscalationRaisedBy", fields: [escalatedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  escalatedTo User   @relation("EscalationRaisedTo", fields: [escalatedToId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  resolvedBy  User?  @relation("EscalationResolvedBy", fields: [resolvedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([matterId, escalatedAt(sort: Desc)], map: "matter_escalations_matter_idx")
+  @@index([escalatedToId, status], map: "matter_escalations_target_idx")
+  @@map("matter_escalations")
 }

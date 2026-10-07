@@ -103,6 +103,27 @@ export async function POST(req: Request, { params }: Params) {
         comment: closureNotes || 'Board matter formally closed.',
       });
 
+      // A closed matter needs nobody's attention, so an escalation still open
+      // on it is settled with the closure rather than left on the escalated
+      // list forever.
+      const settled = await tx.matterEscalation.updateMany({
+        where: { matterId: id, status: 'OPEN' },
+        data: {
+          status: 'RESOLVED',
+          resolvedById: user.id,
+          resolvedAt: now,
+          resolutionNote: 'Resolved automatically: the matter was formally closed.',
+        },
+      });
+      if (settled.count > 0) {
+        await appendAudit(tx, {
+          matterId: id,
+          user,
+          action: 'Escalation Resolved',
+          comment: 'Open escalation resolved automatically on formal closure.',
+        });
+      }
+
       const recipients = await filterNotifiableUsers(tx, id, [
         matter.responsibleDirectorId,
         matter.responsibleChiefId,

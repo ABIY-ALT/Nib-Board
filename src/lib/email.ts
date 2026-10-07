@@ -470,6 +470,71 @@ export async function sendTaskReminderEmail(
 }
 
 /**
+ * Tells the officer a Board matter has been escalated to them, and why.
+ */
+export async function sendEscalationEmail(
+  to: string,
+  recipientName: string,
+  e: {
+    matterId: string;
+    resolutionNumber: string;
+    title: string;
+    status: string;
+    deadline: string;
+    daysRemaining: number;
+    isOverdue: boolean;
+    ownerName: string;
+    ownerTitle: string;
+    escalatedByName: string;
+    escalatedByTitle: string;
+    reason: string;
+  },
+  openUrl?: string
+): Promise<void> {
+  if (!isEmailConfigured()) {
+    throw new Error('Email is not configured.');
+  }
+
+  const standing = e.isOverdue
+    ? `<span style="color:#c0392b;font-weight:700;">${Math.abs(e.daysRemaining)} day(s) overdue</span>`
+    : `<span style="color:#7a5c10;font-weight:700;">due in ${e.daysRemaining} day(s)</span>`;
+
+  const html = emailShell(`
+    <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#c0392b;">
+      Board Matter Escalated to You
+    </p>
+    <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#3d2b1f;">
+      ${escapeHtml(e.title)}
+    </h1>
+    <p style="margin:0 0 12px;font-size:15px;color:#4a3c30;line-height:1.6;">
+      Hello ${escapeHtml(recipientName)},
+    </p>
+    <p style="margin:0 0 12px;font-size:15px;color:#4a3c30;line-height:1.6;">
+      ${escapeHtml(e.escalatedByName)}${e.escalatedByTitle ? ` (${escapeHtml(e.escalatedByTitle)})` : ''}
+      has escalated the Board matter below to you for management attention. It is ${standing}
+      and is currently held by ${escapeHtml(e.ownerName)}${e.ownerTitle ? `, ${escapeHtml(e.ownerTitle)}` : ''}.
+    </p>
+    <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#5a4a3c;">Reason for escalation</p>
+    <p style="margin:0 0 12px;font-size:15px;color:#4a3c30;line-height:1.6;white-space:pre-wrap;">${escapeHtml(e.reason)}</p>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:16px 0;background:#f9f6f0;border-radius:8px;padding:12px 16px;width:100%;">
+      <tr><td style="font-size:13px;color:#5a4a3c;padding:4px 0;"><strong>Reference:</strong> ${escapeHtml(e.matterId)}</td></tr>
+      <tr><td style="font-size:13px;color:#5a4a3c;padding:4px 0;"><strong>Resolution:</strong> ${escapeHtml(e.resolutionNumber)}</td></tr>
+      <tr><td style="font-size:13px;color:#5a4a3c;padding:4px 0;"><strong>Status:</strong> ${escapeHtml(e.status)}</td></tr>
+      <tr><td style="font-size:13px;color:#5a4a3c;padding:4px 0;"><strong>Deadline:</strong> ${escapeHtml(e.deadline)}</td></tr>
+    </table>
+    ${openUrl ? ctaButton('Open the Matter', openUrl) : ''}
+  `);
+
+  await sendMailWithRetry({
+    from: EMAIL_FROM,
+    to,
+    subject: `[ESCALATED] ${e.matterId} — ${e.title}`,
+    html,
+    attachments: getEmailAttachments(),
+  });
+}
+
+/**
  * Runs a send and reports whether it worked, instead of throwing.
  *
  * Announcement and reminder dispatch happens after the record has been written
