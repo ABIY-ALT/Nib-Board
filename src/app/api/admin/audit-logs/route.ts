@@ -6,6 +6,7 @@ import { toAuditCsv } from '@/lib/audit-csv';
 import type { Prisma } from '@/generated/prisma/client';
 import { assertPermission } from '@/lib/permissions.server';
 import { PERMISSIONS } from '@/lib/permissions';
+import { stripPort } from '@/lib/security';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -68,7 +69,9 @@ function serialize(e: EventRow) {
     occurredAt: e.occurredAt.toISOString(),
     userId: e.userId,
     emailAttempted: e.emailAttempted,
-    ip: e.ip,
+    // Rows recorded before the port was stripped at source still carry it,
+    // and the table is append-only, so it is removed on the way out.
+    ip: stripPort(e.ip),
     userAgent: e.userAgent,
     detail: e.detail,
     user: e.user,
@@ -107,7 +110,7 @@ export async function GET(req: Request) {
       });
 
       const stamp = new Date().toISOString().slice(0, 10);
-      return new NextResponse(toAuditCsv(rows), {
+      return new NextResponse(toAuditCsv(rows.map((r) => ({ ...r, ip: stripPort(r.ip) }))), {
         headers: {
           'Content-Type': 'text/csv; charset=utf-8',
           'Content-Disposition': `attachment; filename="nib-board-audit-log-${stamp}.csv"`,

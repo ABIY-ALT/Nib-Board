@@ -113,9 +113,28 @@ export function clientIp(req: Request): string | null {
   const forwarded = req.headers.get('x-forwarded-for');
   if (forwarded) {
     const hops = forwarded.split(',').map((h) => h.trim()).filter(Boolean);
-    if (hops.length) return hops[Math.max(0, hops.length - TRUSTED_PROXY_HOPS)]!;
+    if (hops.length) return stripPort(hops[Math.max(0, hops.length - TRUSTED_PROXY_HOPS)]!);
   }
-  return req.headers.get('x-real-ip');
+  return stripPort(req.headers.get('x-real-ip'));
+}
+
+/**
+ * The address without the client's source port.
+ *
+ * IIS (ARR) writes X-Forwarded-For as `address:port`, and the port changes on
+ * every connection. Kept, it made each sign-in attempt from one machine look
+ * like a new address, so the per-address limiter never tripped, and it filled
+ * the audit log with values nobody can match against a firewall log. Handles
+ * `1.2.3.4:5678` and `[2001:db8::1]:5678`; a bare IPv6 address, whose colons
+ * are not a port, is returned unchanged.
+ */
+export function stripPort(address: string | null | undefined): string | null {
+  if (!address) return null;
+  const v4 = /^(\d{1,3}(?:\.\d{1,3}){3}):\d+$/.exec(address);
+  if (v4) return v4[1]!;
+  const v6 = /^\[([^\]]+)\](?::\d+)?$/.exec(address);
+  if (v6) return v6[1]!;
+  return address;
 }
 
 export function userAgent(req: Request): string | null {
