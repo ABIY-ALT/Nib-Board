@@ -6,6 +6,7 @@ import { modalOverlayClass, FilePicker } from '@/components/ui/primitives';
 import { useAuth, useAuthenticatedUser } from '@/context/AuthContext';
 import { MatterType, Priority } from '@/lib/types';
 import { X, Plus, Upload, Building, Calendar, Layers, ShieldAlert, FileText } from 'lucide-react';
+import { apiFetch } from '@/lib/api-client';
 
 interface RegisterMatterModalProps {
   isOpen: boolean;
@@ -65,7 +66,7 @@ export const RegisterMatterModal: React.FC<RegisterMatterModalProps> = ({
   React.useEffect(() => {
     (async () => {
       try {
-        const res = await fetch('/api/departments');
+        const res = await apiFetch('/api/departments');
         if (res.ok) {
           const data = await res.json();
           if (data.departments?.length) setDepartments(data.departments);
@@ -115,7 +116,7 @@ export const RegisterMatterModal: React.FC<RegisterMatterModalProps> = ({
           ? customMatterType.trim()
           : matterType;
 
-      const res = await fetch('/api/matters', {
+      const res = await apiFetch('/api/matters', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

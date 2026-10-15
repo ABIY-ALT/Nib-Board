@@ -23,6 +23,7 @@ import {
   type AnnouncementType,
 } from '@/lib/announcements';
 import { PERMISSIONS } from '@/lib/permissions';
+import { apiFetch } from '@/lib/api-client';
 
 interface AudienceOptions {
   roles: Array<{ roleKey: string; label: string }>;
@@ -172,7 +173,7 @@ export const AnnouncementFormModal: React.FC<Props> = ({ isOpen, onClose, editin
   useEffect(() => {
     if (!isOpen || options) return;
     void (async () => {
-      const res = await fetch('/api/announcements/audience');
+      const res = await apiFetch('/api/announcements/audience');
       if (res.ok) setOptions(await res.json());
     })();
   }, [isOpen, options]);
@@ -252,7 +253,7 @@ export const AnnouncementFormModal: React.FC<Props> = ({ isOpen, onClose, editin
 
     setBusy(mode);
     try {
-      const res = await fetch(editing ? `/api/announcements/${editing.id}` : '/api/announcements', {
+      const res = await apiFetch(editing ? `/api/announcements/${editing.id}` : '/api/announcements', {
         method: editing ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -268,7 +269,7 @@ export const AnnouncementFormModal: React.FC<Props> = ({ isOpen, onClose, editin
       if (file && id) {
         const form = new FormData();
         form.append('file', file);
-        const upload = await fetch(`/api/announcements/${id}/attachment`, {
+        const upload = await apiFetch(`/api/announcements/${id}/attachment`, {
           method: 'POST',
           body: form,
         });
@@ -287,7 +288,7 @@ export const AnnouncementFormModal: React.FC<Props> = ({ isOpen, onClose, editin
       // An existing draft is published through the publish endpoint, which is
       // where that permission is enforced.
       if (editing && mode === 'publish' && editing.status === 'DRAFT') {
-        const published = await fetch(`/api/announcements/${editing.id}/publish`, {
+        const published = await apiFetch(`/api/announcements/${editing.id}/publish`, {
           method: 'POST',
         });
         if (!published.ok) {

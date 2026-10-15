@@ -5,6 +5,7 @@ import { modalOverlayClass } from '@/components/ui/primitives';
 import { useAuth, useAuthenticatedUser } from '@/context/AuthContext';
 import { BODMatter } from '@/lib/types';
 import { X, Lock, ShieldCheck, AlertCircle } from 'lucide-react';
+import { apiFetch } from '@/lib/api-client';
 
 interface CloseMatterModalProps {
   isOpen: boolean;
@@ -38,7 +39,7 @@ export const CloseMatterModal: React.FC<CloseMatterModalProps> = ({
       setIsSubmitting(true);
       setError('');
 
-      const res = await fetch(`/api/matters/${matter.id}/close`, {
+      const res = await apiFetch(`/api/matters/${matter.id}/close`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

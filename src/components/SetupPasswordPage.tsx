@@ -5,6 +5,7 @@ import { NibLogoImage } from '@/components/ui/NibLogoImage';
 import { useSearchParams } from 'next/navigation';
 import { KeyRound, ShieldCheck, AlertTriangle, Check, Loader2, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { passwordRules } from '@/lib/password-policy';
+import { apiFetch } from '@/lib/api-client';
 
 type Phase = 'loading' | 'ready' | 'submitting' | 'success' | 'error';
 
@@ -42,7 +43,7 @@ export const SetupPasswordPage: React.FC = () => {
 
     (async () => {
       try {
-        const res = await fetch(`/api/auth/setup-password?token=${encodeURIComponent(token)}`);
+        const res = await apiFetch(`/api/auth/setup-password?token=${encodeURIComponent(token)}`);
         if (res.ok) {
           const data = await res.json();
           setName(data.name);
@@ -77,7 +78,7 @@ export const SetupPasswordPage: React.FC = () => {
     setPhase('submitting');
 
     try {
-      const res = await fetch('/api/auth/setup-password', {
+      const res = await apiFetch('/api/auth/setup-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, newPassword }),

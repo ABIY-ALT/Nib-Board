@@ -4,10 +4,17 @@ import { transaction } from '@/lib/prisma';
 import {
   hashPassword,
   verifyPassword,
-  checkPasswordPolicy,
+  checkNewPassword,
   MAX_PASSWORD_INPUT_LENGTH,
 } from '@/lib/password';
-import { createSession, revokeAllSessionsForUser, SESSION_COOKIE, SESSION_COOKIE_OPTIONS } from '@/lib/session';
+import {
+  createSession,
+  revokeAllSessionsForUser,
+  REVOKED,
+  SESSION_COOKIE,
+  SESSION_COOKIE_OPTIONS,
+} from '@/lib/session';
+import { csrfTokenFor } from '@/lib/csrf.server';
 import {
   assertLoginRateLimit,
   assertSameOrigin,
@@ -53,7 +60,7 @@ export async function POST(req: Request) {
       badRequest('currentPassword and newPassword are required.');
     }
 
-    const policy = checkPasswordPolicy(newPassword!, { name: user.name, email: user.email });
+    const policy = await checkNewPassword(newPassword!, { name: user.name, email: user.email });
     if (!policy.ok) {
       badRequest(`The new password ${policy.problems.join('; ')}.`);
     }
@@ -75,7 +82,7 @@ export async function POST(req: Request) {
      * failure record, the attempt counter and any lockout survive: throwing
      * from inside would roll all of them back. Mirrors the sign-in route.
      */
-    type Outcome = { ok: true } | { ok: false; status: number; message: string };
+    type Outcome = { ok: true; csrfToken: string } | { ok: false; status: number; message: string };
 
     const outcome = await transaction<Outcome>(async (tx) => {
       const account = await tx.user.findUnique({
@@ -142,8 +149,8 @@ export async function POST(req: Request) {
         },
       });
 
-      await revokeAllSessionsForUser(tx, user.id, 'password changed');
-      const { token, expiresAt } = await createSession(tx, user.id, { ip, userAgent: ua });
+      await revokeAllSessionsForUser(tx, user.id, REVOKED.PASSWORD_CHANGED);
+      const { token } = await createSession(tx, user.id, { ip, userAgent: ua });
 
       await recordAuthEvent(tx, {
         event: 'PASSWORD_CHANGED',
@@ -153,9 +160,10 @@ export async function POST(req: Request) {
       });
 
       const store = await cookies();
-      store.set(SESSION_COOKIE, token, { ...SESSION_COOKIE_OPTIONS, expires: expiresAt });
+      store.set(SESSION_COOKIE, token, SESSION_COOKIE_OPTIONS);
 
-      return { ok: true };
+      // The anti-CSRF token is bound to the session, which was just replaced.
+      return { ok: true, csrfToken: csrfTokenFor(token) };
     });
 
     // Raised only after the transaction has committed, so the failure record
@@ -163,6 +171,6 @@ export async function POST(req: Request) {
     if (!outcome.ok) {
       throw new HttpError(outcome.status, outcome.message);
     }
-    return { ok: true };
+    return { ok: true, csrfToken: outcome.csrfToken };
   });
 }

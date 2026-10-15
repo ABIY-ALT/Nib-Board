@@ -1,4 +1,5 @@
 import { DocumentCategory } from './types';
+import { apiFetch } from './api-client';
 
 /**
  * Client-side document upload.
@@ -68,7 +69,7 @@ export async function uploadDocument(
   if (fields.description) form.append('description', fields.description);
 
   // No Content-Type header: the browser sets it with the multipart boundary.
-  const res = await fetch(`/api/matters/${matterId}/documents`, { method: 'POST', body: form });
+  const res = await apiFetch(`/api/matters/${matterId}/documents`, { method: 'POST', body: form });
   const payload = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(payload.error ?? 'The document could not be uploaded.');
   return payload as UploadedDocument;

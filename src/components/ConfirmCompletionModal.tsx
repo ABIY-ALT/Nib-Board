@@ -5,6 +5,7 @@ import { modalOverlayClass } from '@/components/ui/primitives';
 import { useAuth, useAuthenticatedUser } from '@/context/AuthContext';
 import { BODMatter } from '@/lib/types';
 import { X, ShieldCheck, AlertCircle, RotateCcw, CheckCircle2 } from 'lucide-react';
+import { apiFetch } from '@/lib/api-client';
 
 interface ConfirmCompletionModalProps {
   isOpen: boolean;
@@ -40,7 +41,7 @@ export const ConfirmCompletionModal: React.FC<ConfirmCompletionModalProps> = ({
       setIsSubmitting(true);
       setError('');
 
-      const res = await fetch(`/api/matters/${matter.id}/confirm-completion`, {
+      const res = await apiFetch(`/api/matters/${matter.id}/confirm-completion`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

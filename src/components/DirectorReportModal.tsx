@@ -6,6 +6,7 @@ import { modalOverlayClass, FilePicker } from '@/components/ui/primitives';
 import { useAuth, useAuthenticatedUser } from '@/context/AuthContext';
 import { BODMatter } from '@/lib/types';
 import { X, FileCheck, Upload, AlertCircle, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { apiFetch } from '@/lib/api-client';
 
 interface DirectorReportModalProps {
   isOpen: boolean;
@@ -75,7 +76,7 @@ export const DirectorReportModal: React.FC<DirectorReportModalProps> = ({
         }
       }
 
-      const res = await fetch(`/api/matters/${matter.id}/submit-implementation`, {
+      const res = await apiFetch(`/api/matters/${matter.id}/submit-implementation`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

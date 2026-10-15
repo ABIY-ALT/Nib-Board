@@ -43,7 +43,10 @@ export type ViewId =
   | 'reports'
   | 'users'
   | 'settings'
-  | 'matter-detail';
+  | 'matter-detail'
+  // Reached from the account menu rather than the sidebar, and open to every
+  // role: canSeeView() admits any view that has no navigation item.
+  | 'account';
 
 export interface NavItem {
   id: ViewId;

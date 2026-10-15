@@ -19,6 +19,7 @@ import {
   openEscalation,
 } from '@/lib/escalations';
 import { ROLE_LABEL, formatDateTime } from '@/lib/matters';
+import { apiFetch } from '@/lib/api-client';
 
 export type EscalationMode = 'escalate' | 'resolve';
 
@@ -101,7 +102,7 @@ export const EscalationModal: React.FC<EscalationModalProps> = ({ isOpen, mode, 
     setSubmitting(true);
     setError('');
     try {
-      const res = await fetch(`/api/matters/${matter.id}/escalation`, {
+      const res = await apiFetch(`/api/matters/${matter.id}/escalation`, {
         method: escalating ? 'POST' : 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(escalating ? { escalatedToId: targetId, reason: trimmed } : { note: trimmed }),

@@ -9,6 +9,7 @@ import {
   WifiOff,
   CheckCircle2,
 } from 'lucide-react';
+import { apiFetch } from '@/lib/api-client';
 
 /**
  * Default estimated comeback time — 5 minutes from first render.
@@ -63,7 +64,7 @@ export const ServerDownPage: React.FC<ServerDownPageProps> = ({
   const checkHealth = useCallback(async () => {
     setChecking(true);
     try {
-      const res = await fetch('/api/auth/session', { method: 'GET' });
+      const res = await apiFetch('/api/auth/session', { method: 'GET' });
       // Any non-network response means the server is up.
       if (res.ok || res.status === 401 || res.status === 403) {
         setIsBack(true);

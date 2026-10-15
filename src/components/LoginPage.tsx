@@ -2,7 +2,17 @@
 
 import React, { useState } from 'react';
 import { NibLogoImage } from '@/components/ui/NibLogoImage';
-import { AlertTriangle, CheckCircle, Lock, Eye, EyeOff, Monitor, Moon, Sun } from 'lucide-react';
+import {
+  AlertTriangle,
+  CheckCircle,
+  Info,
+  Lock,
+  Eye,
+  EyeOff,
+  Monitor,
+  Moon,
+  Sun,
+} from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme, ThemePreference } from '@/context/ThemeContext';
@@ -66,7 +76,7 @@ const ThemeSwitch: React.FC = () => {
  * and lit as a room in dark mode. The form itself is identical either way.
  */
 export const LoginPage: React.FC = () => {
-  const { login } = useAuth();
+  const { login, sessionNotice } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -146,7 +156,21 @@ export const LoginPage: React.FC = () => {
             </div>
           )}
 
-          {setupSuccess && !error && (
+          {/* Why the previous session ended, when this browser did not end it:
+              a sign-in elsewhere, a password change, a timeout (VA-002). */}
+          {sessionNotice && !error && (
+            <div
+              role="status"
+              className="flex items-start gap-2.5 rounded-lg border border-amber-300 bg-amber-50 px-3.5 py-3 mb-5 text-left dark:border-amber-400/30 dark:bg-amber-950/50"
+            >
+              <Info className="w-4 h-4 shrink-0 mt-0.5 text-amber-700 dark:text-amber-300" />
+              <p className="text-[12px] leading-relaxed text-amber-900 dark:text-amber-100">
+                {sessionNotice}
+              </p>
+            </div>
+          )}
+
+          {setupSuccess && !error && !sessionNotice && (
             <div
               role="status"
               className="flex items-start gap-2.5 rounded-lg border border-green-300 bg-green-50 px-3.5 py-3 mb-5 text-left dark:border-green-400/30 dark:bg-green-950/50"

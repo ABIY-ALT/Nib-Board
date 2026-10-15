@@ -8,6 +8,8 @@
  * before submitting rather than after being rejected.
  */
 
+import { isCommonPassword } from './common-passwords';
+
 /**
  * Six characters is the floor.
  *
@@ -42,12 +44,21 @@ export interface PasswordRule {
 }
 
 /**
+ * The rejection for a known-compromised password, whether the browser's
+ * pattern check caught it or the API's breach lookup did (checkNewPassword in
+ * password.ts), so the officer reads the same reason either way.
+ */
+export const BREACHED_PASSWORD_PROBLEM =
+  'is a known breached password, or a common word with only numbers or symbols added — choose something harder to guess';
+
+/**
  * The rules, bound to the account they are being applied to.
  *
- * What survives the relaxed length rule are the two checks that catch a
- * genuinely guessable credential: a password built out of the account's own
- * name or email address — the first thing anyone holding the staff directory
- * would try — and a single character repeated.
+ * What survives the relaxed length rule are the checks that catch a genuinely
+ * guessable credential: a password built out of the account's own name or
+ * email address — the first thing anyone holding the staff directory would
+ * try — a single character repeated, and the common and breached passwords
+ * that every guessing tool tries first (lib/common-passwords.ts).
  */
 export function passwordRules(context: { name?: string; email?: string } = {}): PasswordRule[] {
   // Both sides are reduced to letters and digits first, so "Rahel Solomon"
@@ -80,6 +91,14 @@ export function passwordRules(context: { name?: string; email?: string } = {}): 
       label: 'Not the same character repeated',
       problem: 'must not be a single repeated character',
       test: (plain) => plain.length === 0 || new Set(plain).size > 1,
+    },
+    {
+      // Security assessment VA-001: known-compromised passwords are refused.
+      // This is the pattern check the browser can run; the API also looks the
+      // password up in the breach corpus before accepting it.
+      label: 'Not a common or previously breached password',
+      problem: BREACHED_PASSWORD_PROBLEM,
+      test: (plain) => plain.length === 0 || !isCommonPassword(plain),
     },
   ];
 }

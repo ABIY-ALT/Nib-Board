@@ -1,4 +1,10 @@
 import { hash, verify } from '@node-rs/argon2';
+import {
+  checkPasswordPolicy,
+  BREACHED_PASSWORD_PROBLEM,
+  type PasswordPolicyResult,
+} from './password-policy';
+import { isKnownCompromised } from './breached-passwords.server';
 
 /**
  * Argon2id parameters.
@@ -33,6 +39,25 @@ export async function verifyPassword(plain: string, storedHash: string | null): 
   } catch {
     return false;
   }
+}
+
+/**
+ * The full check for a password about to be set, for the API: the shared rules
+ * the browser also applies, then the breach lookup it cannot — the list of the
+ * most-breached passwords and, when configured, the Pwned Passwords corpus
+ * (breached-passwords.server.ts). The lookup runs only once the shared rules
+ * pass, so a password already refused for another reason costs no request to
+ * the range service.
+ */
+export async function checkNewPassword(
+  plain: string,
+  context: { name?: string; email?: string } = {}
+): Promise<PasswordPolicyResult> {
+  const result = checkPasswordPolicy(plain, context);
+  if (result.ok && (await isKnownCompromised(plain))) {
+    return { ok: false, problems: [BREACHED_PASSWORD_PROBLEM] };
+  }
+  return result;
 }
 
 /**

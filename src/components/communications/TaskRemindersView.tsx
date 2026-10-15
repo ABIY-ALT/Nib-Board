@@ -32,6 +32,7 @@ import { PERMISSIONS } from '@/lib/permissions';
 import { REMINDER_REASON_LABEL, type TaskReminderRow } from '@/lib/announcements';
 import { formatDate, formatDateTime } from '@/lib/matters';
 import { navItem } from '@/lib/navigation';
+import { apiFetch } from '@/lib/api-client';
 
 interface Props {
   onOpenMatter?: (matterId: string) => void;
@@ -65,7 +66,7 @@ export const TaskRemindersView: React.FC<Props> = ({ onOpenMatter }) => {
   const load = useCallback(async () => {
     setState('loading');
     try {
-      const res = await fetch('/api/task-reminders');
+      const res = await apiFetch('/api/task-reminders');
       if (!res.ok) {
         setState('error');
         return;
@@ -418,7 +419,7 @@ const SendReminderDialog: React.FC<{
   const send = async () => {
     setBusy(true);
     try {
-      const res = await fetch('/api/task-reminders', {
+      const res = await apiFetch('/api/task-reminders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ matterId: row.matterId, message: message.trim() || undefined }),

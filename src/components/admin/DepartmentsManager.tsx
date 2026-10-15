@@ -20,6 +20,7 @@ import { useAuth, useAuthenticatedUser } from '@/context/AuthContext';
 import { DepartmentItem } from '@/lib/departments';
 import { User } from '@/lib/types';
 import { PERMISSIONS } from '@/lib/permissions';
+import { apiFetch } from '@/lib/api-client';
 
 export const DepartmentsManager: React.FC = () => {
   const user = useAuthenticatedUser();
@@ -49,8 +50,8 @@ export const DepartmentsManager: React.FC = () => {
     setLoading(true);
     try {
       const [deptRes, usersRes] = await Promise.all([
-        fetch('/api/departments'),
-        fetch('/api/users'),
+        apiFetch('/api/departments'),
+        apiFetch('/api/users'),
       ]);
 
       if (deptRes.ok) {
@@ -90,7 +91,7 @@ export const DepartmentsManager: React.FC = () => {
     setCreateError(null);
 
     try {
-      const res = await fetch('/api/departments', {
+      const res = await apiFetch('/api/departments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -129,7 +130,7 @@ export const DepartmentsManager: React.FC = () => {
 
     setUpdating(true);
     try {
-      const res = await fetch(`/api/departments/${editingDept.id}`, {
+      const res = await apiFetch(`/api/departments/${editingDept.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ directorId: selectedDirectorId || null }),
@@ -159,7 +160,7 @@ export const DepartmentsManager: React.FC = () => {
     if (!confirm(`Are you sure you want to delete "${dept.name}"?`)) return;
 
     try {
-      const res = await fetch(`/api/departments/${dept.id}`, {
+      const res = await apiFetch(`/api/departments/${dept.id}`, {
         method: 'DELETE',
       });
 

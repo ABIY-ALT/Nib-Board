@@ -1,12 +1,16 @@
 import { cookies } from 'next/headers';
 import { resolveSession, SESSION_COOKIE } from './session';
 import { User } from './types';
+import { API_ERROR } from './api-protocol';
 
 export { SESSION_COOKIE };
 
-/** Thrown by handlers; mapped to an HTTP status by `handle()`. */
+/**
+ * Thrown by handlers; mapped to an HTTP status by `handle()`. `code`, when set,
+ * is sent beside the message for the client to act on (see API_ERROR).
+ */
 export class HttpError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(public status: number, message: string, public code?: string) {
     super(message);
   }
 }
@@ -46,7 +50,7 @@ export async function getCurrentUser(): Promise<User | null> {
 export async function requireUser(): Promise<User> {
   const principal = await getPrincipal();
   if (!principal) {
-    throw new HttpError(401, 'Authentication required: no valid session.');
+    throw new HttpError(401, 'Authentication required: no valid session.', API_ERROR.SESSION_REQUIRED);
   }
   if (principal.mustChangePassword) {
     throw new HttpError(403, 'PASSWORD_CHANGE_REQUIRED');
@@ -61,7 +65,7 @@ export async function requireUser(): Promise<User> {
 export async function requireUserAllowingPasswordChange(): Promise<Principal> {
   const principal = await getPrincipal();
   if (!principal) {
-    throw new HttpError(401, 'Authentication required: no valid session.');
+    throw new HttpError(401, 'Authentication required: no valid session.', API_ERROR.SESSION_REQUIRED);
   }
   return principal;
 }

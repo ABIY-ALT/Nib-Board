@@ -46,6 +46,7 @@ import { AuditLogEntry, BODMatter, User } from '@/lib/types';
 import { UserFormModal } from '@/components/admin/UserFormModal';
 import { RolesMatrix } from '@/components/admin/RolesMatrix';
 import { DepartmentsManager } from '@/components/admin/DepartmentsManager';
+import { apiFetch } from '@/lib/api-client';
 
 /** A directory row as the administration screen sees it: with its account state. */
 type AdminUser = User & { isActive: boolean };
@@ -89,7 +90,7 @@ export const UsersView: React.FC = () => {
     setLoading(true);
     setFailed(false);
     try {
-      const res = await fetch('/api/users?scope=all');
+      const res = await apiFetch('/api/users?scope=all');
       if (!res.ok) throw new Error();
       setRoster(await res.json());
     } catch {
@@ -118,7 +119,7 @@ export const UsersView: React.FC = () => {
     setPendingId(target.id);
     setActionError(null);
     try {
-      const res = await fetch(`/api/users/${target.id}`, {
+      const res = await apiFetch(`/api/users/${target.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -815,7 +816,7 @@ export const GovernanceAuditLogCard: React.FC = () => {
         params.set('page', String(page));
         params.set('pageSize', String(pageSize));
 
-        const res = await fetch(`/api/admin/audit-logs?${params.toString()}`, {
+        const res = await apiFetch(`/api/admin/audit-logs?${params.toString()}`, {
           signal: controller.signal,
         });
         if (!res.ok) {
@@ -858,7 +859,7 @@ export const GovernanceAuditLogCard: React.FC = () => {
       const params = new URLSearchParams(query);
       params.set('format', 'csv');
 
-      const res = await fetch(`/api/admin/audit-logs?${params.toString()}`);
+      const res = await apiFetch(`/api/admin/audit-logs?${params.toString()}`);
       if (!res.ok) {
         const f = await readFailure(res);
         setExportError(f.message);
@@ -1156,7 +1157,7 @@ export const AuditTrailView: React.FC<{ onSelectMatter: (m: BODMatter) => void }
     setLoading(true);
     setFailed(false);
     try {
-      const res = await fetch(`/api/matters/${id}/audit-trail`);
+      const res = await apiFetch(`/api/matters/${id}/audit-trail`);
       if (!res.ok) throw new Error();
       setEntries(await res.json());
     } catch {

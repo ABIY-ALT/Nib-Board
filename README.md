@@ -176,7 +176,9 @@ minimum configuration). Only the hash is stored; no plaintext or reversible form
 
 | Control | Behaviour |
 | --- | --- |
-| Password policy | 12+ characters, mixed case, digit, symbol; rejects passwords containing the account's own name or email local part |
+| Password policy | 6+ characters; rejects the account's own name or email local part and a single repeated character |
+| Breached passwords | Refused whenever a password is set. Offline: the 100,000 most-breached passwords from Have I Been Pwned (NCSC list, `src/lib/data/breached-passwords.txt`), matched with or without added digits and symbols, plus common patterns (`lib/common-passwords.ts`). With `PWNED_PASSWORDS_RANGE_URL` set: the full Pwned Passwords corpus, about a billion passwords, through its k-anonymity range API — see below |
+| Password change | Any signed-in officer can change their own password from **Account security** in the account menu; the current password is required, the policy applies, and every other session ends |
 | Forced change | Seeded accounts carry a temporary credential and `must_change_password`; the API refuses **every** endpoint except password-change until it is replaced |
 | Account lockout | 5 consecutive failures locks the account for 15 minutes — the correct password is refused while locked |
 | Rate limiting | 20 failures from one address in 15 minutes returns 429, catching password-spraying that per-account lockout would never see |
@@ -184,10 +186,13 @@ minimum configuration). Only the hash is stored; no plaintext or reversible form
 | Sessions | Server-side table; the cookie holds a 256-bit random token and only its SHA-256 hash is stored, so reading the database yields nothing replayable |
 | Session lifetime | 30-minute idle timeout (slid forward on use) and an 8-hour absolute cap |
 | Rotation | Sign-in revokes prior sessions and issues a new token, defeating session fixation |
-| Revocation | Sign-out and password change revoke server-side, not just clear the cookie |
-| Security audit | Every sign-in, failure, lockout, logout and password change lands in the append-only `auth_events` table |
+| One session per account | Signing in from a second browser ends the first. An open page asks `/api/auth/session/status` every 30 seconds and on focus — a check that does not count as activity — and returns to the sign-in page saying why the session ended |
+| Session visibility | **Account security** lists the account's open session (device, address, times) and its recent sign-ins, failed attempts, lockouts, password changes and ended sessions, and can sign out of every session |
+| Revocation | Sign-out, sign-out-everywhere and password change revoke server-side, not just clear the cookie |
+| Security audit | Every sign-in, failure, lockout, logout, password change and ended session lands in the append-only `auth_events` table |
 
-Cookies are `httpOnly`, `SameSite=Strict`, and `Secure` in production.
+Cookies are `httpOnly`, `SameSite=Strict`, and `Secure` in production, and carry no expiry, so
+they last only as long as the browser; the server enforces both timeouts.
 
 ## Authorization
 
@@ -267,7 +272,10 @@ deleted at all. UPDATE and DELETE fail even from a direct `psql` session.
 | Method | Path | Purpose |
 | --- | --- | --- |
 | GET/POST/DELETE | `/api/auth/session` | Current session, sign in, sign out |
-| POST | `/api/auth/password` | Change own password (reachable during forced change) |
+| GET | `/api/auth/session/status` | Whether this browser's session is live, and if not why it ended (does not extend it) |
+| GET/DELETE | `/api/auth/sessions` | Own open sessions and recent sign-in activity / sign out of every session |
+| GET | `/api/auth/csrf` | Anti-CSRF token for the current cookies |
+| POST | `/api/auth/password` | Change own password (forced change, or from Account security) |
 | GET/POST | `/api/users` | Officer directory (`?scope=all` for admins) / provision an account |
 | PATCH/DELETE | `/api/users/:id` | Amend, reset credential, unlock, deactivate / reactivate |
 | GET/POST | `/api/matter-types` | Read / configure matter types |
@@ -319,14 +327,27 @@ ignores a proxy at the project root when the app lives in `src/`, and `next buil
   `force-dynamic` because a prerendered page cannot carry a per-request nonce, which would
   leave Next.js's own scripts blocked.
 - **CSRF** — state-changing `/api` requests are rejected unless `Sec-Fetch-Site` is
-  same-origin and `Origin` matches the serving host. Enforced in `proxy.ts` so a new route
-  cannot forget it; `SameSite=Strict` on the session cookie is the first layer.
+  same-origin, `Origin` matches the serving host, and an `X-CSRF-Token` header carries the
+  token for the browser's cookies: an HMAC keyed by the httpOnly session cookie, or before
+  sign-in by an httpOnly pre-session cookie (`lib/csrf.server.ts`). Enforced in `proxy.ts`
+  for every POST, PUT, PATCH and DELETE, sign-in included, so a new route cannot forget it.
+  The browser calls the API only through `apiFetch` (`lib/api-client.ts`), which attaches
+  the token. `SameSite=Strict` on the session cookie is the first layer, and JSON-only
+  request bodies another.
 - **HSTS** (production), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`,
   `Referrer-Policy: same-origin`, `Permissions-Policy`, `Cross-Origin-Opener-Policy`.
 - `/api` responses are `no-store`, so Board data never enters a shared or browser cache.
 
 Set `ALLOWED_ORIGINS` (comma-separated) if the app is served behind a hostname the
 `Host` header does not reflect.
+
+Set `PWNED_PASSWORDS_RANGE_URL=https://api.pwnedpasswords.com/range/` to check every new
+password against the full Pwned Passwords corpus, or point it at an internal mirror of that
+API. Only the first five characters of the password's SHA-1 hash leave the server; the
+match is made locally (`lib/breached-passwords.server.ts`). The server needs outbound HTTPS
+to that host; behind a forward proxy on Node 24+, also set `NODE_USE_ENV_PROXY=1` and
+`HTTPS_PROXY`. If the service is unreachable the change is still checked against the offline
+list and the outage is logged. Pwned Passwords data is by Troy Hunt, licensed CC BY 4.0.
 
 Set `APP_URL` to the public origin (e.g. `https://nibboardtest.nibbank.com.et`); without it,
 links in invitation and reset emails are built from the request's `Host` header.
@@ -348,9 +369,9 @@ Node.js port must not be reachable except through that proxy, or the header can 
    seeded from `ADMIN_PASSWORD` (or a generated value printed once) with
    `must_change_password = FALSE`, because it is the account used to recover the others.
    Nothing forces this one to be replaced, so rotate it after seeding.
-4. **The password policy is six characters.** Length only: no composition requirement, with
-   the account's own name/email and a single repeated character still rejected
-   (`src/lib/password-policy.ts`). Online guessing is held off by lockout and the
+4. **The password policy is six characters.** No composition requirement, with the
+   account's own name/email, a single repeated character and breached passwords
+   still rejected (`src/lib/password-policy.ts`). Online guessing is held off by lockout and the
    per-address rate limiter rather than by the policy, so raise the floor here if the
    deployment is internet-facing.
 5. **No self-service password reset.** A locked-out or forgotten-password officer needs an

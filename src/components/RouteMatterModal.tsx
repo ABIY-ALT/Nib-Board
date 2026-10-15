@@ -5,6 +5,7 @@ import { modalOverlayClass } from '@/components/ui/primitives';
 import { useAuth, useAuthenticatedUser } from '@/context/AuthContext';
 import { BODMatter } from '@/lib/types';
 import { X, Send, UserCheck, AlertCircle, ArrowRight } from 'lucide-react';
+import { apiFetch } from '@/lib/api-client';
 
 interface RouteMatterModalProps {
   isOpen: boolean;
@@ -71,7 +72,7 @@ export const RouteMatterModal: React.FC<RouteMatterModalProps> = ({
       setIsSubmitting(true);
       setError('');
 
-      const res = await fetch(`/api/matters/${matter.id}/routing`, {
+      const res = await apiFetch(`/api/matters/${matter.id}/routing`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

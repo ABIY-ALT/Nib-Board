@@ -26,20 +26,53 @@ export interface SessionContext {
 }
 
 /**
+ * Why a session was revoked, as stored in sessions.revoked_reason. Named here
+ * so that sessionStatus() can tell a signed-out browser why its session ended;
+ * rows written before these constants existed carry the same strings.
+ */
+export const REVOKED = {
+  SUPERSEDED: 'superseded by new sign-in',
+  SIGNED_OUT: 'signed out',
+  SIGNED_OUT_EVERYWHERE: 'signed out of all sessions',
+  PASSWORD_CHANGED: 'password changed',
+  PASSWORD_SET: 'password set via setup link',
+  PASSWORD_RESET: 'password reset by administrator',
+  ACCOUNT_CHANGED: 'account changed by administrator',
+  ACCOUNT_DEACTIVATED: 'account deactivated',
+} as const;
+
+/** The predicate a session row must meet to be usable at `now`. */
+function liveAt(now: Date) {
+  return { revokedAt: null, expiresAt: { gt: now }, absoluteExpiresAt: { gt: now } };
+}
+
+/**
  * Issues a new session and returns the raw token for the cookie.
  *
- * Any existing sessions for the user are revoked first: sign-in rotates the
- * session identifier, so a token captured before authentication cannot be
- * reused afterwards (session fixation).
+ * Any existing sessions for the user are revoked first, which does two jobs.
+ * Sign-in rotates the session identifier, so a token captured before
+ * authentication cannot be reused afterwards (session fixation). And an account
+ * has at most one open session (security assessment VA-002): signing in from a
+ * second browser ends the first, whose holder is told why the next time it
+ * checks in. `superseded` counts the live sessions that were ended this way.
+ *
+ * Callers update the users row earlier in the same transaction, and that row
+ * lock serializes concurrent sign-ins to one account, so two cannot both find
+ * nothing to revoke and both stay open.
  */
 export async function createSession(
   db: Db,
   userId: string,
   ctx: SessionContext
-): Promise<{ token: string; expiresAt: Date }> {
+): Promise<{ token: string; expiresAt: Date; superseded: number }> {
+  const superseded = await db.session.updateMany({
+    where: { userId, ...liveAt(new Date()) },
+    data: { revokedAt: new Date(), revokedReason: REVOKED.SUPERSEDED },
+  });
+  // Expired sessions are closed off too, so none is ever left unrevoked.
   await db.session.updateMany({
     where: { userId, revokedAt: null },
-    data: { revokedAt: new Date(), revokedReason: 'superseded by new sign-in' },
+    data: { revokedAt: new Date(), revokedReason: REVOKED.SUPERSEDED },
   });
 
   const token = randomBytes(32).toString('hex');
@@ -58,7 +91,7 @@ export async function createSession(
     },
   });
 
-  return { token, expiresAt };
+  return { token, expiresAt, superseded: superseded.count };
 }
 
 /**
@@ -180,6 +213,118 @@ export async function isSessionLive(token: string): Promise<boolean> {
   return live > 0;
 }
 
+export type SessionEndReason =
+  | 'superseded'
+  | 'signed-out'
+  | 'signed-out-everywhere'
+  | 'password-changed'
+  | 'password-reset'
+  | 'account-changed'
+  | 'account-deactivated'
+  | 'idle-timeout'
+  | 'absolute-timeout'
+  | 'ended';
+
+/** What the signed-out browser is told, keyed by the reason its session ended. */
+export const SESSION_END_MESSAGE: Record<SessionEndReason, string> = {
+  superseded:
+    'Your account was signed in from another browser or device, which ended this session. ' +
+    'Only one session per account can be open at a time. If that was not you, sign in and ' +
+    'change your password straight away.',
+  'signed-out': 'You have been signed out.',
+  'signed-out-everywhere': 'Your account was signed out of every session.',
+  'password-changed':
+    'Your password was changed, which ended this session. Sign in with the new password.',
+  'password-reset':
+    'An administrator reset your password, which ended this session. Use the link in the ' +
+    'reset email to choose a new one.',
+  'account-changed': 'An administrator changed your account. Sign in again to continue.',
+  'account-deactivated': 'Your account has been deactivated. Contact the system administrator.',
+  'idle-timeout': `You were signed out after ${IDLE_TIMEOUT_MINUTES} minutes without activity.`,
+  'absolute-timeout': `Your session reached its ${ABSOLUTE_TIMEOUT_HOURS}-hour limit. Sign in again to continue.`,
+  ended: 'Your session has ended. Sign in again to continue.',
+};
+
+const REASON_BY_REVOCATION: Record<string, SessionEndReason> = {
+  [REVOKED.SUPERSEDED]: 'superseded',
+  [REVOKED.SIGNED_OUT]: 'signed-out',
+  [REVOKED.SIGNED_OUT_EVERYWHERE]: 'signed-out-everywhere',
+  [REVOKED.PASSWORD_CHANGED]: 'password-changed',
+  [REVOKED.PASSWORD_SET]: 'password-changed',
+  [REVOKED.PASSWORD_RESET]: 'password-reset',
+  [REVOKED.ACCOUNT_CHANGED]: 'account-changed',
+  [REVOKED.ACCOUNT_DEACTIVATED]: 'account-deactivated',
+};
+
+/**
+ * Whether a token's session is still live and, if not, why it ended.
+ *
+ * Like isSessionLive() it does not slide the idle window, so the browser can
+ * ask every few seconds without keeping an unattended session alive. Whichever
+ * came first, the revocation or the expiry, is reported: a session that
+ * timed out and was later closed off by a new sign-in timed out.
+ */
+export async function sessionStatus(
+  token: string | undefined
+): Promise<{ live: true } | { live: false; reason: SessionEndReason }> {
+  if (!token) return { live: false, reason: 'ended' };
+
+  const session = await prisma.session.findUnique({
+    where: { tokenHash: hashToken(token) },
+    select: {
+      expiresAt: true,
+      absoluteExpiresAt: true,
+      revokedAt: true,
+      revokedReason: true,
+      user: { select: { isActive: true } },
+    },
+  });
+  if (!session) return { live: false, reason: 'ended' };
+  if (!session.user.isActive) return { live: false, reason: 'account-deactivated' };
+
+  const timedOutAt =
+    session.absoluteExpiresAt < session.expiresAt ? session.absoluteExpiresAt : session.expiresAt;
+
+  if (session.revokedAt && session.revokedAt < timedOutAt) {
+    return { live: false, reason: REASON_BY_REVOCATION[session.revokedReason ?? ''] ?? 'ended' };
+  }
+  if (timedOutAt <= new Date()) {
+    return {
+      live: false,
+      reason: timedOutAt === session.absoluteExpiresAt ? 'absolute-timeout' : 'idle-timeout',
+    };
+  }
+  return { live: true };
+}
+
+export interface LiveSessionView {
+  current: boolean;
+  signedInAt: string;
+  lastSeenAt: string;
+  ip: string | null;
+  userAgent: string | null;
+}
+
+/** The account's open sessions, newest first, marking the one `currentToken` belongs to. */
+export async function listLiveSessions(
+  userId: string,
+  currentToken: string | undefined
+): Promise<LiveSessionView[]> {
+  const currentHash = currentToken ? hashToken(currentToken) : null;
+  const rows = await prisma.session.findMany({
+    where: { userId, ...liveAt(new Date()) },
+    orderBy: { createdAt: 'desc' },
+    select: { tokenHash: true, createdAt: true, lastSeenAt: true, ip: true, userAgent: true },
+  });
+  return rows.map((s) => ({
+    current: s.tokenHash === currentHash,
+    signedInAt: s.createdAt.toISOString(),
+    lastSeenAt: s.lastSeenAt.toISOString(),
+    ip: s.ip,
+    userAgent: s.userAgent,
+  }));
+}
+
 export async function revokeSession(token: string | undefined, reason: string): Promise<void> {
   if (!token) return;
   await prisma.session.updateMany({
@@ -207,6 +352,13 @@ export function safeEquals(a: string, b: string): boolean {
   return timingSafeEqual(ab, bb);
 }
 
+/**
+ * Deliberately without Expires or Max-Age, so the cookie lasts only as long
+ * as the browser and is never written to disk. The server enforces both
+ * timeouts on every request. The cookie used to expire 30 minutes after
+ * sign-in and was never renewed, so an officer working steadily was signed
+ * out at the half hour even though the server still held the session open.
+ */
 export const SESSION_COOKIE_OPTIONS = {
   httpOnly: true,
   sameSite: 'strict' as const,

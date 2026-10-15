@@ -1,9 +1,24 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  ReactNode,
+} from 'react';
 import { User, BODMatter, AppNotification, DashboardMetrics } from '@/lib/types';
 import { Announcement } from '@/lib/announcements';
 import { PermissionKey, hasPermission } from '@/lib/permissions';
+import { apiFetch, onSessionEnded, setCsrfToken } from '@/lib/api-client';
+
+/**
+ * How often an open page asks whether its session is still live. The question
+ * does not count as activity, so asking cannot keep an idle session alive.
+ */
+const SESSION_CHECK_INTERVAL_MS = 30_000;
 
 interface AuthContextType {
   currentUser: User | null;
@@ -11,6 +26,13 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
+  /** Ends every session on the account, this one included. */
+  signOutEverywhere: () => Promise<{ success: boolean; error?: string }>;
+  /**
+   * Why the last session ended, when it ended other than by signing out here —
+   * shown on the sign-in page.
+   */
+  sessionNotice: string | null;
   mustChangePassword: boolean;
   changePassword: (
     currentPassword: string,
@@ -67,36 +89,100 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [serverDown, setServerDown] = useState(false);
+  const [sessionNotice, setSessionNotice] = useState<string | null>(null);
 
   const isAuthenticated = currentUser !== null;
 
+  /** Drops everything held for the signed-in account. */
+  const clearSignedInState = useCallback(() => {
+    setUser(null);
+    setMustChangePassword(false);
+    setAllUsers([]);
+    setMatters([]);
+    setNotifications([]);
+    setMetrics(null);
+    setPermissions([]);
+    setAnnouncements([]);
+  }, []);
+
+  /**
+   * Asks the server whether this browser's session is still live, and if it is
+   * not, returns to the sign-in page with the reason (security assessment
+   * VA-002). A session ended elsewhere — by a sign-in on another device, a
+   * password change, an administrator, the idle timeout — used to leave this
+   * page showing the workspace as if nothing had happened, until some action
+   * failed.
+   */
+  const checkingSession = useRef(false);
+  const checkSession = useCallback(async () => {
+    if (checkingSession.current) return;
+    checkingSession.current = true;
+    try {
+      const res = await fetch('/api/auth/session/status', { cache: 'no-store' });
+      if (!res.ok) return;
+      const status = await res.json();
+      if (status.live === false) {
+        setSessionNotice(typeof status.message === 'string' ? status.message : null);
+        // The token was bound to the session that just ended.
+        setCsrfToken(null);
+        clearSignedInState();
+      }
+    } catch {
+      // Unreachable server: not evidence the session ended. Ask again later.
+    } finally {
+      checkingSession.current = false;
+    }
+  }, [clearSignedInState]);
+
+  // Any API call refused for want of a session triggers the same check.
+  useEffect(() => onSessionEnded(() => void checkSession()), [checkSession]);
+
+  // While signed in, ask regularly, and at once when the page regains focus —
+  // which is when someone switching back to this browser would look at it.
+  // Hidden pages skip the timer; they check on becoming visible.
+  useEffect(() => {
+    if (!currentUser) return;
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void checkSession();
+    };
+    const timer = setInterval(onVisible, SESSION_CHECK_INTERVAL_MS);
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
+  }, [currentUser, checkSession]);
+
   const refreshUsers = useCallback(async () => {
-    const res = await fetch('/api/users');
+    const res = await apiFetch('/api/users');
     if (res.ok) setAllUsers(await res.json());
   }, []);
 
   const refreshMatters = useCallback(async () => {
     try {
-      const res = await fetch('/api/matters');
+      // A 401 here is handled with every other one: apiFetch reports it and
+      // checkSession() signs the page out with the reason.
+      const res = await apiFetch('/api/matters');
       if (res.ok) setMatters(await res.json());
-      else if (res.status === 401) setUser(null);
     } catch {
       setError('Unable to load BOD matters.');
     }
   }, []);
 
   const refreshNotifications = useCallback(async () => {
-    const res = await fetch('/api/notifications');
+    const res = await apiFetch('/api/notifications');
     if (res.ok) setNotifications(await res.json());
   }, []);
 
   const refreshMetrics = useCallback(async () => {
-    const res = await fetch('/api/metrics');
+    const res = await apiFetch('/api/metrics');
     if (res.ok) setMetrics(await res.json());
   }, []);
 
   const refreshMatterTypes = useCallback(async () => {
-    const res = await fetch('/api/matter-types');
+    const res = await apiFetch('/api/matter-types');
     if (res.ok) setMatterTypes(await res.json());
   }, []);
 
@@ -110,7 +196,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    */
   const refreshAnnouncements = useCallback(async () => {
     try {
-      const res = await fetch('/api/announcements');
+      const res = await apiFetch('/api/announcements');
       setAnnouncements(res.ok ? await res.json() : []);
     } catch {
       setAnnouncements([]);
@@ -142,9 +228,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const attemptSessionRestore = useCallback(async () => {
     try {
       setIsLoading(true);
-      const res = await fetch('/api/auth/session');
+      const res = await apiFetch('/api/auth/session');
       if (res.ok) {
-        const { user, mustChangePassword: mustChange, permissions: granted } = await res.json();
+        const {
+          user,
+          mustChangePassword: mustChange,
+          permissions: granted,
+          csrfToken,
+        } = await res.json();
+        setCsrfToken(csrfToken);
         if (user) {
           setUser(user);
           setMustChangePassword(Boolean(mustChange));
@@ -174,7 +266,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, [currentUser, mustChangePassword, refreshAll]);
 
   const login = async (email: string, password: string) => {
-    const res = await fetch('/api/auth/session', {
+    const res = await apiFetch('/api/auth/session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
@@ -183,6 +275,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (!res.ok) {
       return { success: false as const, error: payload.error as string };
     }
+    setCsrfToken(payload.csrfToken);
+    setSessionNotice(null);
     setUser(payload.user);
     setMustChangePassword(Boolean(payload.mustChangePassword));
     setPermissions(Array.isArray(payload.permissions) ? payload.permissions : []);
@@ -190,7 +284,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const changePassword = async (currentPassword: string, newPassword: string) => {
-    const res = await fetch('/api/auth/password', {
+    const res = await apiFetch('/api/auth/password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ currentPassword, newPassword }),
@@ -199,21 +293,34 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (!res.ok) {
       return { success: false as const, error: payload.error as string };
     }
+    // The change replaced the session, and the token is bound to it.
+    setCsrfToken(payload.csrfToken);
     setMustChangePassword(false);
     return { success: true as const };
   };
 
   const logout = () => {
-    void fetch('/api/auth/session', { method: 'DELETE' }).then(() => {
-      setUser(null);
-      setMustChangePassword(false);
-      setAllUsers([]);
-      setMatters([]);
-      setNotifications([]);
-      setMetrics(null);
-      setPermissions([]);
-      setAnnouncements([]);
+    void apiFetch('/api/auth/session', { method: 'DELETE' }).then(async (res) => {
+      setCsrfToken((await res.json().catch(() => ({}))).csrfToken);
+      setSessionNotice(null);
+      clearSignedInState();
     });
+  };
+
+  const signOutEverywhere = async () => {
+    try {
+      const res = await apiFetch('/api/auth/sessions', { method: 'DELETE' });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return { success: false, error: payload.error ?? 'Could not sign out of every session.' };
+      }
+      setCsrfToken(payload.csrfToken);
+      setSessionNotice('You have been signed out of every session on your account.');
+      clearSignedInState();
+      return { success: true };
+    } catch {
+      return { success: false, error: 'Could not reach the server.' };
+    }
   };
 
   /**
@@ -224,24 +331,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    * together.
    */
   const markAnnouncementRead = async (id: string) => {
-    const res = await fetch(`/api/announcements/${id}/read`, { method: 'POST' });
+    const res = await apiFetch(`/api/announcements/${id}/read`, { method: 'POST' });
     if (res.ok) {
       await Promise.all([refreshAnnouncements(), refreshNotifications()]);
     }
   };
 
   const markNotificationRead = async (id: string) => {
-    await fetch(`/api/notifications/${id}/mark-read`, { method: 'POST' });
+    await apiFetch(`/api/notifications/${id}/mark-read`, { method: 'POST' });
     await refreshNotifications();
   };
 
   const markAllNotificationsRead = async () => {
-    await fetch('/api/notifications/mark-all-read', { method: 'POST' });
+    await apiFetch('/api/notifications/mark-all-read', { method: 'POST' });
     await refreshNotifications();
   };
 
   const addMatterType = async (name: string) => {
-    const res = await fetch('/api/matter-types', {
+    const res = await apiFetch('/api/matter-types', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),
@@ -254,7 +361,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const removeMatterType = async (name: string) => {
     try {
-      const res = await fetch('/api/matter-types', {
+      const res = await apiFetch('/api/matter-types', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name }),
@@ -280,6 +387,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isAuthenticated,
         login,
         logout,
+        signOutEverywhere,
+        sessionNotice,
         mustChangePassword,
         changePassword,
         matters,

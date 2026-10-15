@@ -19,6 +19,7 @@ import { Card, CardHeader, Button, Field, inputClass, modalOverlayClass, cn } fr
 import { useAuth, useAuthenticatedUser } from '@/context/AuthContext';
 import { AppRole, PermissionAction, ALL_PERMISSION_ACTIONS } from '@/lib/roles';
 import { PERMISSIONS } from '@/lib/permissions';
+import { apiFetch } from '@/lib/api-client';
 
 export const RolesMatrix: React.FC = () => {
   const user = useAuthenticatedUser();
@@ -43,7 +44,7 @@ export const RolesMatrix: React.FC = () => {
   const loadRoles = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/roles');
+      const res = await apiFetch('/api/roles');
       if (res.ok) {
         const data = await res.json();
         setRoles(data.roles || []);
@@ -84,7 +85,7 @@ export const RolesMatrix: React.FC = () => {
     try {
       // Save each role's permissions
       for (const r of roles) {
-        await fetch('/api/roles', {
+        await apiFetch('/api/roles', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -110,7 +111,7 @@ export const RolesMatrix: React.FC = () => {
     setCreateError(null);
 
     try {
-      const res = await fetch('/api/roles', {
+      const res = await apiFetch('/api/roles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -145,7 +146,7 @@ export const RolesMatrix: React.FC = () => {
     if (!window.confirm(`Are you sure you want to delete custom role "${roleLabel}"?`)) return;
 
     try {
-      const res = await fetch('/api/roles', {
+      const res = await apiFetch('/api/roles', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ roleKey }),

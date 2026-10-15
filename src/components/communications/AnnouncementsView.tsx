@@ -42,6 +42,7 @@ import {
   formatDay,
   formatStamp,
 } from './shared';
+import { apiFetch } from '@/lib/api-client';
 
 interface Props {
   onOpenMatter?: (matterId: string) => void;
@@ -82,7 +83,7 @@ export const AnnouncementsView: React.FC<Props> = ({ onOpenMatter }) => {
     if (!canManage) return;
     setManagedState('loading');
     try {
-      const res = await fetch('/api/announcements?scope=manage');
+      const res = await apiFetch('/api/announcements?scope=manage');
       if (!res.ok) {
         setManagedState('error');
         return;
@@ -125,7 +126,7 @@ export const AnnouncementsView: React.FC<Props> = ({ onOpenMatter }) => {
     setBusyId(a.id);
     setNotice(null);
     try {
-      const res = await fetch(`/api/announcements/${a.id}/publish`, { method: 'POST' });
+      const res = await apiFetch(`/api/announcements/${a.id}/publish`, { method: 'POST' });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
         setNotice(payload.error ?? 'The announcement could not be published.');
@@ -151,7 +152,7 @@ export const AnnouncementsView: React.FC<Props> = ({ onOpenMatter }) => {
     setBusyId(a.id);
     setNotice(null);
     try {
-      const res = await fetch(`/api/announcements/${a.id}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/announcements/${a.id}`, { method: 'DELETE' });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
         setNotice(payload.error ?? 'The announcement could not be withdrawn.');

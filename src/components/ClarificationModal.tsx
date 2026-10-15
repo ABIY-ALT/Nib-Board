@@ -5,6 +5,7 @@ import { modalOverlayClass } from '@/components/ui/primitives';
 import { useAuth, useAuthenticatedUser } from '@/context/AuthContext';
 import { BODMatter, ClarificationThread } from '@/lib/types';
 import { X, HelpCircle, Send, MessageSquare, AlertCircle } from 'lucide-react';
+import { apiFetch } from '@/lib/api-client';
 
 interface ClarificationModalProps {
   isOpen: boolean;
@@ -54,7 +55,7 @@ export const ClarificationModal: React.FC<ClarificationModalProps> = ({
 
       let res;
       if (isReplyMode && replyThread) {
-        res = await fetch(`/api/matters/${matter.id}/clarifications/${replyThread.id}/reply`, {
+        res = await apiFetch(`/api/matters/${matter.id}/clarifications/${replyThread.id}/reply`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -62,7 +63,7 @@ export const ClarificationModal: React.FC<ClarificationModalProps> = ({
           body: JSON.stringify({ responseText: response }),
         });
       } else {
-        res = await fetch(`/api/matters/${matter.id}/clarifications`, {
+        res = await apiFetch(`/api/matters/${matter.id}/clarifications`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

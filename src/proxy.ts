@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isSessionLive, SESSION_COOKIE } from '@/lib/session';
+import { hasValidCsrfToken } from '@/lib/csrf.server';
+import { API_ERROR } from '@/lib/api-protocol';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
@@ -108,11 +110,23 @@ export async function proxy(req: NextRequest) {
 
   // CSRF is enforced here rather than per-route so that adding an endpoint
   // cannot accidentally omit it. The session cookie is SameSite=Strict, which
-  // already stops a browser attaching it cross-site; this is the second layer.
+  // already stops a browser attaching it cross-site; the origin check and the
+  // anti-CSRF token (security assessment VA-003) are the layers behind it.
   if (isApi && !SAFE_METHODS.has(req.method)) {
     const rejection = crossSiteRejection(req);
     if (rejection) {
       return NextResponse.json({ error: rejection }, { status: 403 });
+    }
+    // Every state-changing call needs the token, signed in or not, so there
+    // is no list of exempt endpoints to keep correct. See lib/csrf.server.ts.
+    if (!hasValidCsrfToken(req)) {
+      return NextResponse.json(
+        {
+          error: 'The request is missing a valid anti-CSRF token. Reload the page and try again.',
+          code: API_ERROR.CSRF_INVALID,
+        },
+        { status: 403 }
+      );
     }
     if (Number(req.headers.get('content-length')) > MAX_REQUEST_BODY_BYTES) {
       return NextResponse.json(

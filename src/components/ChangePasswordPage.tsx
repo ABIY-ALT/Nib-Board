@@ -6,19 +6,57 @@ import { useAuth } from '@/context/AuthContext';
 import { KeyRound, ShieldCheck, AlertTriangle, Check, Loader2, Eye, EyeOff } from 'lucide-react';
 import { passwordRules } from '@/lib/password-policy';
 
+const PasswordInput: React.FC<{
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+  autoComplete: string;
+}> = ({ id, value, onChange, autoComplete }) => {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div className="relative">
+      <input
+        id={id}
+        type={visible ? 'text' : 'password'}
+        autoComplete={autoComplete}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full bg-app border border-line rounded-lg pl-3 pr-10 py-2 text-xs focus:outline-none focus:border-nib-gold-400/60"
+        required
+      />
+      <button
+        type="button"
+        onClick={() => setVisible(!visible)}
+        className="absolute right-2 top-1/2 -translate-y-1/2 text-black hover:text-neutral-700 p-1 rounded transition"
+        aria-label={visible ? 'Hide password' : 'Show password'}
+      >
+        {visible ? (
+          <EyeOff className="w-5 h-5 stroke-[2.8] text-black" />
+        ) : (
+          <Eye className="w-5 h-5 stroke-[2.8] text-black" />
+        )}
+      </button>
+    </div>
+  );
+};
+
 /**
- * Shown when the account carries a forced password change. The API refuses
- * every other endpoint until this is done, so this screen is the only thing a
- * user with a temporary credential can reach.
+ * Current password, the new one twice, and the policy as a live checklist.
+ *
+ * Shared by the forced change below and by Account security, where an officer
+ * changes a password they suspect has leaked (security assessment VA-001).
+ * Either way the API demands the current password, applies the same policy and
+ * signs out every other session.
  */
-export const ChangePasswordPage: React.FC = () => {
-  const { currentUser, changePassword, logout } = useAuth();
+export const ChangePasswordForm: React.FC<{
+  submitLabel: string;
+  /** Called after the server has accepted the new password. */
+  onChanged?: () => void;
+}> = ({ submitLabel, onChanged }) => {
+  const { currentUser, changePassword } = useAuth();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -38,8 +76,106 @@ export const ChangePasswordPage: React.FC = () => {
     setIsSubmitting(true);
     const res = await changePassword(currentPassword, newPassword);
     setIsSubmitting(false);
-    if (!res.success) setError(res.error ?? 'Could not change the password.');
+    if (!res.success) return setError(res.error ?? 'Could not change the password.');
+
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    onChanged?.();
   };
+
+  return (
+    <>
+      {error && (
+        <div className="flex items-start space-x-2 bg-st-late-bg border border-st-late/30 text-st-late rounded-lg p-3 mb-4 text-[11px]">
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <div>
+          <label htmlFor="cp-current" className="block text-[11px] font-semibold text-ink-2 mb-1">
+            Current password
+          </label>
+          <PasswordInput
+            id="cp-current"
+            autoComplete="current-password"
+            value={currentPassword}
+            onChange={setCurrentPassword}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="cp-new" className="block text-[11px] font-semibold text-ink-2 mb-1">
+            New password
+          </label>
+          <PasswordInput
+            id="cp-new"
+            autoComplete="new-password"
+            value={newPassword}
+            onChange={setNewPassword}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="cp-confirm" className="block text-[11px] font-semibold text-ink-2 mb-1">
+            Confirm new password
+          </label>
+          <PasswordInput
+            id="cp-confirm"
+            autoComplete="new-password"
+            value={confirmPassword}
+            onChange={setConfirmPassword}
+          />
+          {confirmPassword.length > 0 && !matches && (
+            <p className="text-[10px] text-st-late mt-1">The entries do not match.</p>
+          )}
+        </div>
+
+        <ul className="space-y-1 pt-1">
+          {rules.map((rule, i) => (
+            <li
+              key={rule.label}
+              className={`flex items-center space-x-2 text-[10px] ${
+                satisfied[i] ? 'text-st-done' : 'text-ink-3'
+              }`}
+            >
+              <Check className={`w-3 h-3 ${satisfied[i] ? 'opacity-100' : 'opacity-30'}`} />
+              <span>{rule.label}</span>
+            </li>
+          ))}
+        </ul>
+
+        <button
+          type="submit"
+          disabled={isSubmitting || !allSatisfied || !matches}
+          className="w-full bg-nib-gold-500 hover:bg-nib-gold-400 disabled:bg-surface-3 disabled:text-ink-3 text-nib-brown-900 font-bold text-xs rounded-lg py-2.5 transition flex items-center justify-center space-x-2"
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Updating…</span>
+            </>
+          ) : (
+            <>
+              <ShieldCheck className="w-4 h-4" />
+              <span>{submitLabel}</span>
+            </>
+          )}
+        </button>
+      </form>
+    </>
+  );
+};
+
+/**
+ * Shown when the account carries a forced password change. The API refuses
+ * every other endpoint until this is done, so this screen is the only thing a
+ * user with a temporary credential can reach.
+ */
+export const ChangePasswordPage: React.FC = () => {
+  const { currentUser, logout } = useAuth();
 
   return (
     <div className="min-h-screen bg-app flex items-center justify-center p-4 text-ink">
@@ -64,133 +200,7 @@ export const ChangePasswordPage: React.FC = () => {
             </div>
           </div>
 
-          {error && (
-            <div className="flex items-start space-x-2 bg-st-late-bg border border-st-late/30 text-st-late rounded-lg p-3 mb-4 text-[11px]">
-              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <div>
-              <label className="block text-[11px] font-semibold text-ink-2 mb-1">
-                Current password
-              </label>
-              <div className="relative">
-                <input
-                  type={showCurrentPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="w-full bg-app border border-line rounded-lg pl-3 pr-10 py-2 text-xs focus:outline-none focus:border-nib-gold-400/60"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-black hover:text-neutral-700 p-1 rounded transition"
-                  aria-label={showCurrentPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showCurrentPassword ? (
-                    <EyeOff className="w-5 h-5 stroke-[2.8] text-black" />
-                  ) : (
-                    <Eye className="w-5 h-5 stroke-[2.8] text-black" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-semibold text-ink-2 mb-1">
-                New password
-              </label>
-              <div className="relative">
-                <input
-                  type={showNewPassword ? 'text' : 'password'}
-                  autoComplete="new-password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full bg-app border border-line rounded-lg pl-3 pr-10 py-2 text-xs focus:outline-none focus:border-nib-gold-400/60"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowNewPassword(!showNewPassword)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-black hover:text-neutral-700 p-1 rounded transition"
-                  aria-label={showNewPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showNewPassword ? (
-                    <EyeOff className="w-5 h-5 stroke-[2.8] text-black" />
-                  ) : (
-                    <Eye className="w-5 h-5 stroke-[2.8] text-black" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-semibold text-ink-2 mb-1">
-                Confirm new password
-              </label>
-              <div className="relative">
-                <input
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  autoComplete="new-password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full bg-app border border-line rounded-lg pl-3 pr-10 py-2 text-xs focus:outline-none focus:border-nib-gold-400/60"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-black hover:text-neutral-700 p-1 rounded transition"
-                  aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showConfirmPassword ? (
-                    <EyeOff className="w-5 h-5 stroke-[2.8] text-black" />
-                  ) : (
-                    <Eye className="w-5 h-5 stroke-[2.8] text-black" />
-                  )}
-                </button>
-              </div>
-              {confirmPassword.length > 0 && !matches && (
-                <p className="text-[10px] text-st-late mt-1">The entries do not match.</p>
-              )}
-            </div>
-
-            <ul className="space-y-1 pt-1">
-              {rules.map((rule, i) => (
-                <li
-                  key={rule.label}
-                  className={`flex items-center space-x-2 text-[10px] ${
- satisfied[i] ? 'text-st-done' : 'text-ink-3'
-                  }`}
-                >
-                  <Check className={`w-3 h-3 ${satisfied[i] ? 'opacity-100' : 'opacity-30'}`} />
-                  <span>{rule.label}</span>
-                </li>
-              ))}
-            </ul>
-
-            <button
-              type="submit"
-              disabled={isSubmitting || !allSatisfied || !matches}
-              className="w-full bg-nib-gold-500 hover:bg-nib-gold-400 disabled:bg-surface-3 disabled:text-ink-3 text-nib-brown-900 font-bold text-xs rounded-lg py-2.5 transition flex items-center justify-center space-x-2"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Updating…</span>
-                </>
-              ) : (
-                <>
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>Set new password</span>
-                </>
-              )}
-            </button>
-          </form>
+          <ChangePasswordForm submitLabel="Set new password" />
 
           <button
             onClick={logout}

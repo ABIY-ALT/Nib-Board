@@ -5,6 +5,7 @@ import {
   Bell,
   Check,
   CheckCheck,
+  KeyRound,
   LogOut,
   Menu,
   Monitor,
@@ -425,6 +426,16 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                 </p>
                 <p className="text-[13px] text-ink mt-1">{currentUser.businessArea}</p>
               </div>
+
+              <button
+                onClick={() => {
+                  onNavigate('account');
+                  setMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-2.5 px-4 py-3 text-[13px] font-medium text-ink hover:bg-surface-2 transition-colors"
+              >
+                <KeyRound className="h-4 w-4 text-ink-3" aria-hidden="true" /> Account security
+              </button>
 
               {can(PERMISSIONS.CONFIGURE_SETTINGS) && (
                 <button

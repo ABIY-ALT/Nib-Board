@@ -18,6 +18,7 @@ import { ReportsView } from '@/components/ReportsView';
 import { LoginPage } from '@/components/LoginPage';
 import { ServerDownPage } from '@/components/ServerDownPage';
 import { ChangePasswordPage } from '@/components/ChangePasswordPage';
+import { AccountSecurityView } from '@/components/account/AccountSecurityView';
 import { RegisterMatterModal } from '@/components/RegisterMatterModal';
 import { RouteMatterModal } from '@/components/RouteMatterModal';
 import { DirectorReportModal } from '@/components/DirectorReportModal';
@@ -187,6 +188,8 @@ const SignedIn: React.FC<SignedInProps> = ({
         return <UsersView />;
       case 'settings':
         return <SettingsView />;
+      case 'account':
+        return <AccountSecurityView />;
       case 'matter-detail':
         return active ? (
           <MatterDetail

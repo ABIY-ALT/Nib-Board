@@ -41,6 +41,7 @@ import { AuditLogEntry, BODMatter, ClarificationThread } from '@/lib/types';
 import { ROLE_LABEL, daysOpen, formatDate, formatDateTime } from '@/lib/matters';
 import { PERMISSIONS } from '@/lib/permissions';
 import { escalationAge, openEscalation } from '@/lib/escalations';
+import { apiFetch } from '@/lib/api-client';
 
 interface MatterDetailProps {
   matter: BODMatter;
@@ -102,7 +103,7 @@ export const MatterDetail: React.FC<MatterDetailProps> = ({
     setAuditLoading(true);
     setAuditFailed(false);
     try {
-      const res = await fetch(`/api/matters/${matter.id}/audit-trail`);
+      const res = await apiFetch(`/api/matters/${matter.id}/audit-trail`);
       if (!res.ok) throw new Error();
       setAudit(await res.json());
     } catch {
@@ -160,7 +161,7 @@ export const MatterDetail: React.FC<MatterDetailProps> = ({
   const accept = async () => {
     setAccepting(true);
     try {
-      await fetch(`/api/matters/${matter.id}/accept-ownership`, {
+      await apiFetch(`/api/matters/${matter.id}/accept-ownership`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),

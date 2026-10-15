@@ -7,9 +7,11 @@ import {
   createSession,
   passwordChangeEnforced,
   revokeSession,
+  REVOKED,
   SESSION_COOKIE,
   SESSION_COOKIE_OPTIONS,
 } from '@/lib/session';
+import { csrfTokenFor, currentCsrfToken, issuePresessionCsrfToken } from '@/lib/csrf.server';
 import { verifyPassword, MAX_PASSWORD_INPUT_LENGTH } from '@/lib/password';
 import {
   assertLoginRateLimit,
@@ -36,6 +38,9 @@ const MAX_EMAIL_LENGTH = 254;
  * what the caller cannot do. It is a courtesy, not a control: every endpoint
  * re-reads the permissions from the role definition on its own, so a client
  * that keeps a stale list, or invents one, gets nowhere.
+ *
+ * The anti-CSRF token for this browser travels with it too, so the page needs
+ * no second round trip before its first state-changing request.
  */
 export async function GET() {
   const principal = await getPrincipal();
@@ -43,6 +48,7 @@ export async function GET() {
     user: principal?.user ?? null,
     mustChangePassword: principal?.mustChangePassword ?? false,
     permissions: principal ? await getPermissions(principal.user) : [],
+    csrfToken: await currentCsrfToken(),
   });
 }
 
@@ -171,7 +177,22 @@ export async function POST(req: Request) {
         data: { failedLoginAttempts: 0, lockedUntil: null, lastLoginAt: new Date() },
       });
 
-      const { token, expiresAt } = await createSession(tx, account.id, { ip, userAgent: ua });
+      const { token, superseded } = await createSession(tx, account.id, { ip, userAgent: ua });
+
+      // One open session per account: a sign-in that ended another one is
+      // recorded, so the account holder can see it under Account security and
+      // the security team can see it in the audit trail. Written before the
+      // sign-in itself so the sign-in reads as the newer of the two.
+      if (superseded > 0) {
+        await recordAuthEvent(tx, {
+          event: 'SESSION_REVOKED',
+          userId: account.id,
+          emailAttempted: email,
+          ip,
+          userAgent: ua,
+          detail: 'The session already open on this account was ended by a new sign-in',
+        });
+      }
 
       await recordAuthEvent(tx, {
         event: 'LOGIN_SUCCEEDED',
@@ -182,7 +203,7 @@ export async function POST(req: Request) {
       });
 
       const store = await cookies();
-      store.set(SESSION_COOKIE, token, { ...SESSION_COOKIE_OPTIONS, expires: expiresAt });
+      store.set(SESSION_COOKIE, token, SESSION_COOKIE_OPTIONS);
 
       const signedIn = {
         id: account.id,
@@ -201,6 +222,8 @@ export async function POST(req: Request) {
           user: signedIn,
           mustChangePassword: passwordChangeEnforced(account.role, account.mustChangePassword),
           permissions: await getPermissions(signedIn, tx),
+          // The token is bound to the session, so a new session needs a new one.
+          csrfToken: csrfTokenFor(token),
         },
       };
     });
@@ -223,7 +246,7 @@ export async function DELETE(req: Request) {
     const token = store.get(SESSION_COOKIE)?.value;
     const principal = await getPrincipal();
 
-    await revokeSession(token, 'signed out');
+    await revokeSession(token, REVOKED.SIGNED_OUT);
     await recordAuthEvent(prisma, {
       event: 'LOGOUT',
       userId: principal?.user.id ?? null,
@@ -232,6 +255,8 @@ export async function DELETE(req: Request) {
     });
 
     store.delete(SESSION_COOKIE);
-    return { ok: true };
+    // The sign-in form that follows needs a token that does not depend on
+    // the session just ended.
+    return { ok: true, csrfToken: await issuePresessionCsrfToken() };
   });
 }

@@ -1,7 +1,7 @@
 import { requireUser, HttpError } from '@/lib/auth';
 import { handle, readJson, readPhone, badRequest, conflict } from '@/lib/handler';
 import { transaction } from '@/lib/prisma';
-import { revokeAllSessionsForUser } from '@/lib/session';
+import { revokeAllSessionsForUser, REVOKED } from '@/lib/session';
 import { assertSameOrigin, clientIp, recordAuthEvent, userAgent, appOrigin } from '@/lib/security';
 import { ASSIGNABLE_ROLES, EMAIL_PATTERN } from '@/lib/users';
 import { Role } from '@/lib/types';
@@ -159,7 +159,7 @@ export async function PATCH(req: Request, { params }: Params) {
         await revokeAllSessionsForUser(
           tx,
           id,
-          passwordReset ? 'password reset by administrator' : 'account changed by administrator'
+          passwordReset ? REVOKED.PASSWORD_RESET : REVOKED.ACCOUNT_CHANGED
         );
       }
 
@@ -263,7 +263,7 @@ export async function DELETE(req: Request, { params }: Params) {
 
       await tx.user.update({ where: { id }, data: { isActive: false } });
       await assertAdministrationReachable(tx);
-      await revokeAllSessionsForUser(tx, id, 'account deactivated');
+      await revokeAllSessionsForUser(tx, id, REVOKED.ACCOUNT_DEACTIVATED);
       await recordAuthEvent(tx, {
         event: 'USER_DEACTIVATED',
         userId: id,

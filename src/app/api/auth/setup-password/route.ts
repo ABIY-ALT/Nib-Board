@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import { HttpError } from '@/lib/auth';
 import { handle, readJson, badRequest } from '@/lib/handler';
 import { transaction } from '@/lib/prisma';
-import { hashPassword, checkPasswordPolicy } from '@/lib/password';
+import { hashPassword, checkNewPassword } from '@/lib/password';
 import { resolveSetupToken, consumeSetupToken } from '@/lib/setup-token';
-import { revokeAllSessionsForUser } from '@/lib/session';
+import { revokeAllSessionsForUser, REVOKED } from '@/lib/session';
 import { clientIp, recordAuthEvent, userAgent } from '@/lib/security';
 
 export const runtime = 'nodejs';
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const policy = checkPasswordPolicy(newPassword!, {
+    const policy = await checkNewPassword(newPassword!, {
       name: setupUser.name,
       email: setupUser.email,
     });
@@ -104,7 +104,7 @@ export async function POST(req: Request) {
       // A setup link is also how an administrator resets a credential that
       // may have leaked, so any session opened with the old one ends here —
       // exactly as it does on a normal password change.
-      await revokeAllSessionsForUser(tx, setupUser.userId, 'password set via setup link');
+      await revokeAllSessionsForUser(tx, setupUser.userId, REVOKED.PASSWORD_SET);
 
       // Record the event in the security audit trail.
       await recordAuthEvent(tx, {

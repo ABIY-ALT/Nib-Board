@@ -6,6 +6,7 @@ import { Button, Field, inputClass, selectClass, modalOverlayClass } from '@/com
 import { ROLE_LABEL } from '@/lib/matters';
 import { ASSIGNABLE_ROLES, isValidPhone, PHONE_REQUIREMENT } from '@/lib/users';
 import { Role, User } from '@/lib/types';
+import { apiFetch } from '@/lib/api-client';
 
 export interface UserFormResult {
   user: User;
@@ -51,8 +52,8 @@ export const UserFormModal: React.FC<Props> = ({ isOpen, onClose, editing, onSav
     (async () => {
       try {
         const [rolesRes, deptsRes] = await Promise.all([
-          fetch('/api/roles'),
-          fetch('/api/departments'),
+          apiFetch('/api/roles'),
+          apiFetch('/api/departments'),
         ]);
         if (rolesRes.ok) {
           const data = await rolesRes.json();
@@ -108,7 +109,7 @@ export const UserFormModal: React.FC<Props> = ({ isOpen, onClose, editing, onSav
     setError(null);
 
     try {
-      const res = await fetch(isEdit ? `/api/users/${editing!.id}` : '/api/users', {
+      const res = await apiFetch(isEdit ? `/api/users/${editing!.id}` : '/api/users', {
         method: isEdit ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

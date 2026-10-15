@@ -18,7 +18,10 @@ export async function handle<T>(fn: () => Promise<T>): Promise<Response> {
     return NextResponse.json(result ?? { ok: true });
   } catch (err) {
     if (err instanceof HttpError) {
-      return NextResponse.json({ error: err.message }, { status: err.status });
+      return NextResponse.json(
+        err.code ? { error: err.message, code: err.code } : { error: err.message },
+        { status: err.status }
+      );
     }
     console.error('[api] unhandled error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
