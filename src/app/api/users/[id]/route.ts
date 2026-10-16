@@ -106,7 +106,17 @@ export async function PATCH(req: Request, { params }: Params) {
       }
 
       if (body.department !== undefined) data.department = body.department?.trim() || null;
-      if (body.phone !== undefined) data.phone = readPhone(body.phone);
+      if (body.phone !== undefined) {
+        const phone = readPhone(body.phone);
+        if (phone && phone !== target.phone) {
+          const clash = await tx.user.findFirst({
+            where: { phone, id: { not: id } },
+            select: { id: true },
+          });
+          if (clash) conflict('Another account already uses that phone number.');
+        }
+        data.phone = phone;
+      }
 
       if (body.unlock) {
         data.lockedUntil = null;

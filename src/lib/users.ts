@@ -31,6 +31,8 @@ export const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
  */
 const PHONE_PATTERN = /^(?:\+251|0)[1-9]\d{8}$/;
 
+const PHONE_SEPARATORS = /[\s\-.()]/g;
+
 /** Longest a number can be with generous spacing; longer is not a phone number. */
 const MAX_PHONE_INPUT_LENGTH = 24;
 
@@ -38,5 +40,20 @@ export const PHONE_REQUIREMENT =
   'Enter a valid Ethiopian phone number: 0 or +251 followed by 9 digits, e.g. 0911 234 567 or +251 11 550 3288.';
 
 export function isValidPhone(phone: string): boolean {
-  return phone.length <= MAX_PHONE_INPUT_LENGTH && PHONE_PATTERN.test(phone.replace(/[\s\-.()]/g, ''));
+  return phone.length <= MAX_PHONE_INPUT_LENGTH && PHONE_PATTERN.test(phone.replace(PHONE_SEPARATORS, ''));
+}
+
+/**
+ * The one form a number is stored in: "+251" and the nine-digit national
+ * number grouped 2-3-4, e.g. "+251 91 123 4567". Every spelling of the same
+ * number — "0911234567", "+251-911-234-567" — comes out identical, which is
+ * what lets the database refuse a second account holding it (assessment
+ * finding "Insufficient Phone Number Uniqueness Validation"). Migration
+ * 7_phone_number_uniqueness rewrote the stored numbers with the same grouping.
+ *
+ * Only meaningful for a number that passes isValidPhone.
+ */
+export function normalizePhone(phone: string): string {
+  const national = phone.replace(PHONE_SEPARATORS, '').replace(/^(?:\+251|0)/, '');
+  return `+251 ${national.slice(0, 2)} ${national.slice(2, 5)} ${national.slice(5)}`;
 }

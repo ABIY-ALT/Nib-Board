@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { HttpError } from './auth';
-import { isValidPhone, PHONE_REQUIREMENT } from './users';
+import { isValidPhone, normalizePhone, PHONE_REQUIREMENT } from './users';
 
 /**
  * Wraps a route handler so that authorization failures surface as the right
@@ -66,7 +66,9 @@ export function badRequest(message: string): never {
 
 /**
  * An optional phone field from a request body: null when absent or blank,
- * refused with 400 when it is not a string or not a valid number.
+ * refused with 400 when it is not a string or not a valid number, and
+ * otherwise returned in its stored form (normalizePhone), so a uniqueness
+ * check compares like with like.
  */
 export function readPhone(value: unknown): string | null {
   if (value === undefined || value === null) return null;
@@ -74,7 +76,7 @@ export function readPhone(value: unknown): string | null {
   const phone = value.trim();
   if (!phone) return null;
   if (!isValidPhone(phone)) badRequest(PHONE_REQUIREMENT);
-  return phone;
+  return normalizePhone(phone);
 }
 
 export function conflict(message: string): never {

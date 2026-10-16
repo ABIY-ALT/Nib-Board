@@ -29,7 +29,9 @@ model User {
   title        String
   businessArea String  @map("business_area")
   department   String?
-  phone        String?
+  /// Stored normalized ("+251 91 123 4567", normalizePhone in src/lib/users.ts)
+  /// so that the unique index sees every spelling of a number as one value.
+  phone        String? @unique
   isActive     Boolean @default(true) @map("is_active")
 
   /// Argon2id, salt and parameters included. No plaintext or reversible form

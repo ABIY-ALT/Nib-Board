@@ -110,6 +110,23 @@ export async function POST(req: Request) {
         );
       }
 
+      // One account per phone number. readPhone has normalized it, so every
+      // spelling of the same number is caught; the unique index on
+      // users.phone is the backstop for a write that races this check.
+      if (phone) {
+        const phoneClash = await tx.user.findUnique({
+          where: { phone },
+          select: { isActive: true },
+        });
+        if (phoneClash) {
+          conflict(
+            phoneClash.isActive
+              ? 'Another account already uses that phone number.'
+              : 'A deactivated account already holds that phone number. Reactivate it, or remove the number from it first.'
+          );
+        }
+      }
+
       // Create the user with no password — they will set one via the email link.
       const created = await tx.user.create({
         data: {
