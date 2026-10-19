@@ -1,9 +1,5 @@
 import { hash, verify } from '@node-rs/argon2';
-import {
-  checkPasswordPolicy,
-  BREACHED_PASSWORD_PROBLEM,
-  type PasswordPolicyResult,
-} from './password-policy';
+import { BREACHED_PASSWORD_PROBLEM, type PasswordPolicyResult } from './password-policy';
 import { isKnownCompromised } from './breached-passwords.server';
 
 /**
@@ -42,22 +38,26 @@ export async function verifyPassword(plain: string, storedHash: string | null): 
 }
 
 /**
- * The full check for a password about to be set, for the API: the shared rules
- * the browser also applies, then the breach lookup it cannot — the list of the
- * most-breached passwords and, when configured, the Pwned Passwords corpus
- * (breached-passwords.server.ts). The lookup runs only once the shared rules
- * pass, so a password already refused for another reason costs no request to
- * the range service.
+ * The largest JSON body read by a route that takes a password (security
+ * assessment VA-005). Two passwords at MAX_PASSWORD_INPUT_LENGTH, every
+ * character at its worst-case JSON escape (\uXXXX, six bytes), plus an email
+ * address or setup token, fit with room to spare. The 26 MB ceiling in
+ * proxy.ts is for document uploads and has no business applying here.
  */
-export async function checkNewPassword(
-  plain: string,
-  context: { name?: string; email?: string } = {}
-): Promise<PasswordPolicyResult> {
-  const result = checkPasswordPolicy(plain, context);
-  if (result.ok && (await isKnownCompromised(plain))) {
-    return { ok: false, problems: [BREACHED_PASSWORD_PROBLEM] };
-  }
-  return result;
+export const MAX_PASSWORD_REQUEST_BYTES = 16 * 1024;
+
+/**
+ * The breach lookup the browser cannot run: the list of the most-breached
+ * passwords and, when configured, the Pwned Passwords corpus
+ * (breached-passwords.server.ts). It is the one check that may leave the
+ * server, so a route setting a password runs it last (security assessment
+ * VA-006): after the shared rules in checkPasswordPolicy pass, after the caller
+ * has proved who they are, and after assertPasswordChangeRateLimit.
+ */
+export async function checkNotCompromised(plain: string): Promise<PasswordPolicyResult> {
+  return (await isKnownCompromised(plain))
+    ? { ok: false, problems: [BREACHED_PASSWORD_PROBLEM] }
+    : { ok: true, problems: [] };
 }
 
 /**

@@ -707,6 +707,8 @@ const EVENT_LABEL: Record<string, string> = {
   USER_REACTIVATED: 'Account Reactivated',
   PASSWORD_RESET: 'Password Reset',
   PASSWORD_CHANGED: 'Password Changed',
+  PASSWORD_CHANGE_REJECTED: 'Password Refused (Breached)',
+  PASSWORD_CHANGE_BLOCKED_RATE_LIMIT: 'Password Change Blocked (Rate Limit)',
   ACCOUNT_LOCKED: 'Account Locked',
   ACCOUNT_UNLOCKED: 'Account Unlocked',
   LOGIN_SUCCEEDED: 'Sign-in Succeeded',

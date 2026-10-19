@@ -11,6 +11,10 @@ export type AuthEvent =
   | 'ACCOUNT_LOCKED'
   | 'LOGOUT'
   | 'PASSWORD_CHANGED'
+  // Security assessment VA-006: what the per-account password-change limiter
+  // counts (assertPasswordChangeRateLimit), and what it records when it refuses.
+  | 'PASSWORD_CHANGE_REJECTED'
+  | 'PASSWORD_CHANGE_BLOCKED_RATE_LIMIT'
   | 'SESSION_EXPIRED'
   | 'SESSION_REVOKED'
   | 'CSRF_REJECTED'
@@ -231,6 +235,46 @@ export async function assertLoginRateLimit(ip: string | null): Promise<void> {
       detail: `More than ${LOGIN_MAX_FAILURES_PER_IP} failures in ${LOGIN_WINDOW_MINUTES} minutes`,
     });
     throw new HttpError(429, 'Too many sign-in attempts. Try again later.');
+  }
+}
+
+const PASSWORD_CHANGE_WINDOW_MINUTES = 15;
+const PASSWORD_CHANGE_MAX_ATTEMPTS = 10;
+
+/**
+ * Throttles setting a password, per account (security assessment VA-006).
+ *
+ * Each attempt that gets as far as the breach lookup can cost a request to the
+ * external range service (breached-passwords.server.ts), so how many one
+ * account may make is limited, and the limit is applied before that lookup.
+ * Counted are the passwords set and the ones refused as breached; a wrong
+ * current password is already counted, and locked out, as a failed sign-in.
+ * Ten in fifteen minutes is far beyond anyone choosing a password by hand.
+ */
+export async function assertPasswordChangeRateLimit(
+  userId: string,
+  request: { ip: string | null; userAgent: string | null }
+): Promise<void> {
+  const attempts = await prisma.authEvent.count({
+    where: {
+      userId,
+      event: { in: ['PASSWORD_CHANGED', 'PASSWORD_CHANGE_REJECTED'] },
+      occurredAt: { gt: new Date(Date.now() - PASSWORD_CHANGE_WINDOW_MINUTES * 60_000) },
+    },
+  });
+
+  if (attempts >= PASSWORD_CHANGE_MAX_ATTEMPTS) {
+    await recordAuthEvent(prisma, {
+      event: 'PASSWORD_CHANGE_BLOCKED_RATE_LIMIT',
+      userId,
+      ip: request.ip,
+      userAgent: request.userAgent,
+      detail: `More than ${PASSWORD_CHANGE_MAX_ATTEMPTS} password changes in ${PASSWORD_CHANGE_WINDOW_MINUTES} minutes`,
+    });
+    throw new HttpError(
+      429,
+      `Too many password changes. Try again in ${PASSWORD_CHANGE_WINDOW_MINUTES} minutes.`
+    );
   }
 }
 

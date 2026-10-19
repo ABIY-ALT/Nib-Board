@@ -33,6 +33,18 @@ const MIN_ENTRY_LENGTH = 4;
 /** A slow or unreachable range service must not hold a password change for long. */
 const RANGE_TIMEOUT_MS = 4_000;
 
+/**
+ * Range requests this process will have open at once (security assessment
+ * VA-006). Password changes are rare and each holds a request for well under
+ * a second, so this is never reached in normal use; past it the lookup is
+ * skipped, exactly as when the service is down, and the offline list still
+ * applies. A burst of password-change attempts therefore cannot pile up
+ * outbound connections, whatever the per-account limit lets through.
+ */
+const MAX_CONCURRENT_RANGE_REQUESTS = 4;
+
+let rangeRequestsInFlight = 0;
+
 let breachList: Set<string> | null = null;
 
 /**
@@ -61,10 +73,18 @@ export async function isInPwnedPasswords(plain: string): Promise<boolean | null>
   const base = process.env.PWNED_PASSWORDS_RANGE_URL?.trim();
   if (!base) return null;
 
+  if (rangeRequestsInFlight >= MAX_CONCURRENT_RANGE_REQUESTS) {
+    console.error(
+      `[password] Pwned Passwords range check skipped: ${MAX_CONCURRENT_RANGE_REQUESTS} already in flight; the offline breach list still applied`
+    );
+    return null;
+  }
+
   const hash = createHash('sha1').update(plain, 'utf8').digest('hex').toUpperCase();
   const prefix = hash.slice(0, 5);
   const suffix = hash.slice(5);
 
+  rangeRequestsInFlight++;
   try {
     const res = await fetch(`${base.replace(/\/*$/, '/')}${prefix}`, {
       // Padding makes every response a similar size, so an observer of the
@@ -85,6 +105,8 @@ export async function isInPwnedPasswords(plain: string): Promise<boolean | null>
       err instanceof Error ? err.message : err
     );
     return null;
+  } finally {
+    rangeRequestsInFlight--;
   }
 }
 

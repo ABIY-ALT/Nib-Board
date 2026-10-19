@@ -12,7 +12,11 @@ import {
   SESSION_COOKIE_OPTIONS,
 } from '@/lib/session';
 import { csrfTokenFor, currentCsrfToken, issuePresessionCsrfToken } from '@/lib/csrf.server';
-import { verifyPassword, MAX_PASSWORD_INPUT_LENGTH } from '@/lib/password';
+import {
+  verifyPassword,
+  MAX_PASSWORD_INPUT_LENGTH,
+  MAX_PASSWORD_REQUEST_BYTES,
+} from '@/lib/password';
 import {
   assertLoginRateLimit,
   assertSameOrigin,
@@ -64,7 +68,9 @@ export async function POST(req: Request) {
   return handle(async () => {
     assertSameOrigin(req);
 
-    const { email, password } = await readJson<{ email?: unknown; password?: unknown }>(req);
+    const { email, password } = await readJson<{ email?: unknown; password?: unknown }>(req, {
+      maxBytes: MAX_PASSWORD_REQUEST_BYTES,
+    });
     const ip = clientIp(req);
     const ua = userAgent(req);
 

@@ -1,11 +1,22 @@
 import { NextResponse } from 'next/server';
 import { HttpError } from '@/lib/auth';
 import { handle, readJson, badRequest } from '@/lib/handler';
-import { transaction } from '@/lib/prisma';
-import { hashPassword, checkNewPassword } from '@/lib/password';
+import { prisma, transaction } from '@/lib/prisma';
+import {
+  hashPassword,
+  checkPasswordPolicy,
+  checkNotCompromised,
+  MAX_PASSWORD_INPUT_LENGTH,
+  MAX_PASSWORD_REQUEST_BYTES,
+} from '@/lib/password';
 import { resolveSetupToken, consumeSetupToken } from '@/lib/setup-token';
 import { revokeAllSessionsForUser, REVOKED } from '@/lib/session';
-import { clientIp, recordAuthEvent, userAgent } from '@/lib/security';
+import {
+  assertPasswordChangeRateLimit,
+  clientIp,
+  recordAuthEvent,
+  userAgent,
+} from '@/lib/security';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -44,13 +55,17 @@ export async function GET(req: Request) {
  * invitation email. On success the password is set, the token consumed, and
  * the caller is redirected to the login page (the API just returns ok; the
  * frontend handles the redirect).
+ *
+ * The checks run cheapest first, as on a password change (security assessment
+ * VA-005, VA-006): the request's size and shape, the token, the password
+ * rules, the per-account limit, and only then the breach lookup.
  */
 export async function POST(req: Request) {
   return handle(async () => {
     const { token, newPassword } = await readJson<{
       token?: string;
       newPassword?: string;
-    }>(req);
+    }>(req, { maxBytes: MAX_PASSWORD_REQUEST_BYTES });
 
     if (
       typeof token !== 'string' ||
@@ -61,6 +76,9 @@ export async function POST(req: Request) {
     ) {
       badRequest('token and newPassword are required.');
     }
+    if (newPassword!.length > MAX_PASSWORD_INPUT_LENGTH) {
+      badRequest(`The new password must be at most ${MAX_PASSWORD_INPUT_LENGTH} characters.`);
+    }
 
     const setupUser = await resolveSetupToken(token!);
     if (!setupUser) {
@@ -70,12 +88,29 @@ export async function POST(req: Request) {
       );
     }
 
-    const policy = await checkNewPassword(newPassword!, {
+    const policy = checkPasswordPolicy(newPassword!, {
       name: setupUser.name,
       email: setupUser.email,
     });
     if (!policy.ok) {
       badRequest(`The new password ${policy.problems.join('; ')}.`);
+    }
+
+    const ip = clientIp(req);
+    const ua = userAgent(req);
+    await assertPasswordChangeRateLimit(setupUser.userId, { ip, userAgent: ua });
+
+    const breach = await checkNotCompromised(newPassword!);
+    if (!breach.ok) {
+      await recordAuthEvent(prisma, {
+        event: 'PASSWORD_CHANGE_REJECTED',
+        userId: setupUser.userId,
+        emailAttempted: setupUser.email,
+        ip,
+        userAgent: ua,
+        detail: 'Password from setup link refused as a known breached password',
+      });
+      badRequest(`The new password ${breach.problems.join('; ')}.`);
     }
 
     await transaction(async (tx) => {
@@ -111,8 +146,8 @@ export async function POST(req: Request) {
         event: 'PASSWORD_CHANGED',
         userId: setupUser.userId,
         emailAttempted: setupUser.email,
-        ip: clientIp(req),
-        userAgent: userAgent(req),
+        ip,
+        userAgent: ua,
         detail: 'Password set via email setup link',
       });
     });

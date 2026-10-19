@@ -107,14 +107,17 @@ export function checkPasswordPolicy(
   plain: string,
   context: { name?: string; email?: string } = {}
 ): PasswordPolicyResult {
+  // Checked before any rule runs (security assessment VA-005), so an oversized
+  // input is refused without being normalised, split into variants or matched
+  // against anything. Not one of the displayed rules: no officer will ever
+  // meet it by accident.
+  if (plain.length > MAX_PASSWORD_INPUT_LENGTH) {
+    return { ok: false, problems: [`must be at most ${MAX_PASSWORD_INPUT_LENGTH} characters`] };
+  }
+
   const problems = passwordRules(context)
     .filter((rule) => !rule.test(plain))
     .map((rule) => rule.problem);
-
-  // Not one of the displayed rules: no officer will ever meet it by accident.
-  if (plain.length > MAX_PASSWORD_INPUT_LENGTH) {
-    problems.push(`must be at most ${MAX_PASSWORD_INPUT_LENGTH} characters`);
-  }
 
   return { ok: problems.length === 0, problems };
 }

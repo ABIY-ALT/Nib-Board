@@ -56,6 +56,8 @@ const EVENT_LABEL: Record<string, { label: string; tone: keyof typeof PILL }> = 
   ACCOUNT_UNLOCKED: { label: 'Account unlocked', tone: 'info' },
   LOGOUT: { label: 'Signed out', tone: 'neutral' },
   PASSWORD_CHANGED: { label: 'Password changed', tone: 'info' },
+  PASSWORD_CHANGE_REJECTED: { label: 'New password refused: breached', tone: 'wait' },
+  PASSWORD_CHANGE_BLOCKED_RATE_LIMIT: { label: 'Password change blocked: too many', tone: 'late' },
   PASSWORD_RESET: { label: 'Password reset', tone: 'wait' },
   SESSION_REVOKED: { label: 'Session ended', tone: 'wait' },
   SESSION_EXPIRED: { label: 'Session expired', tone: 'neutral' },
